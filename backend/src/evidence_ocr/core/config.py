@@ -83,6 +83,23 @@ class Settings(BaseSettings):
         default=2, description="Maximum concurrent cloud OCR jobs allowed"
     )
 
+    # PaddleOCR-VL Document Intelligence (Phase 5)
+    paddleocr_vl_model: str = Field(
+        default="PaddleOCR-VL-1.6", description="PaddleOCR-VL Model identifier (e.g. PaddleOCR-VL-1.6)"
+    )
+    paddleocr_vl_enabled: bool = Field(
+        default=True, description="Enable PaddleOCR-VL document intelligence integration"
+    )
+    paddleocr_vl_request_timeout_seconds: float = Field(
+        default=60.0, description="HTTP request timeout for PaddleOCR-VL calls"
+    )
+    paddleocr_vl_poll_timeout_seconds: float = Field(
+        default=300.0, description="Polling timeout for PaddleOCR-VL jobs"
+    )
+    paddleocr_vl_max_concurrent_jobs: int = Field(
+        default=1, description="Maximum concurrent PaddleOCR-VL jobs allowed"
+    )
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v):

@@ -2,13 +2,14 @@
 
 import uuid
 from datetime import datetime, timezone
-from typing import Annotated, Optional
+from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from evidence_ocr.api.dependencies import (
     get_document_repository,
     get_ingestion_service,
     get_job_repository,
+    get_parsing_repository,
     get_recognition_service,
     get_region_repository,
     get_storage_provider,
@@ -17,10 +18,13 @@ from evidence_ocr.api.dependencies import (
 from evidence_ocr.core.errors import EntityNotFoundError
 from evidence_ocr.db.repositories.documents import DocumentRepository
 from evidence_ocr.db.repositories.jobs import JobRepository
+from evidence_ocr.db.repositories.parsing import DocumentParsingRepository
 from evidence_ocr.db.repositories.regions import RegionRepository
 from evidence_ocr.ingestion.service import IngestionService
 from evidence_ocr.models.document import DocumentStatus
 from evidence_ocr.models.job import JobStage, JobStatus, ProcessingJob
+from evidence_ocr.models.parsing import DocumentParsingRun, LayoutBlock, ParsedPage
+from evidence_ocr.models.region import BoundingBox
 from evidence_ocr.providers.storage import BaseStorageProvider
 from evidence_ocr.recognition.service import RecognitionService
 from evidence_ocr.schemas.documents import (
@@ -30,6 +34,12 @@ from evidence_ocr.schemas.documents import (
     DocumentUploadResponse,
 )
 from evidence_ocr.schemas.jobs import JobCreateRequest, JobResponse, JobStatusResponse
+from evidence_ocr.schemas.parsing import (
+    DocumentIntelligenceRequest,
+    DocumentParsingRunResponse,
+    LayoutBlockResponse,
+    ParsedPageResponse,
+)
 from evidence_ocr.schemas.recognition import (
     DocumentRegionDetail,
     DocumentRegionsListResponse,
@@ -389,4 +399,286 @@ async def recognize_region(
         bounding_box=bbox,
         page_index=page_idx,
     )
+
+
+@router.post(
+    "/{id}/document-intelligence",
+    response_model=JobResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Schedule PaddleOCR-VL Document Intelligence job",
+    description="Enqueues asynchronous PaddleOCR-VL-1.6 document parsing and layout intelligence with duplicate prevention.",
+)
+async def schedule_document_intelligence(
+    id: str,
+    payload: DocumentIntelligenceRequest,
+    doc_repo: Annotated[DocumentRepository, Depends(get_document_repository)],
+    job_repo: Annotated[JobRepository, Depends(get_job_repository)],
+    worker_runner: Annotated[WorkerRunner, Depends(get_worker_runner)],
+) -> JobResponse:
+    """Create and dispatch asynchronous PaddleOCR-VL document intelligence job or return active job."""
+    doc = await doc_repo.get_by_id(id)
+    if not doc:
+        raise EntityNotFoundError("Document", id)
+
+    # Check for active existing job for this document to prevent duplicate execution
+    active_jobs = await job_repo.list_by_document(id)
+    for aj in active_jobs:
+        if aj.status in (JobStatus.QUEUED, JobStatus.SUBMITTED, JobStatus.RUNNING) and getattr(aj, "model", "") == "PaddleOCR-VL-1.6":
+            return JobResponse(
+                job_id=aj.id,
+                document_id=aj.document_id,
+                status=aj.status,
+                stage=aj.stage,
+                provider=getattr(aj, "provider", "paddleocr-cloud") or "paddleocr-cloud",
+                model=getattr(aj, "model", "PaddleOCR-VL-1.6") or "PaddleOCR-VL-1.6",
+                created_at=aj.created_at,
+            )
+
+    now = datetime.now(timezone.utc).isoformat()
+    job_id = f"job-{uuid.uuid4().hex[:8]}"
+
+    job = ProcessingJob(
+        id=job_id,
+        document_id=id,
+        pipeline_version=payload.pipeline_version,
+        idempotency_key=payload.idempotency_key,
+        task_type="document_intelligence",
+        status=JobStatus.QUEUED,
+        stage=JobStage.INGESTION,
+        provider="paddleocr-cloud",
+        model="PaddleOCR-VL-1.6",
+        created_at=now,
+        updated_at=now,
+    )
+
+    await job_repo.create(job)
+    await worker_runner.dispatch_document_intelligence(job_id, id, payload.pipeline_version)
+
+    return JobResponse(
+        job_id=job.id,
+        document_id=job.document_id,
+        status=job.status,
+        stage=job.stage,
+        provider=job.provider,
+        model=job.model,
+        created_at=job.created_at,
+    )
+
+
+@router.get(
+    "/{id}/parsed-document",
+    response_model=Optional[DocumentParsingRunResponse],
+    summary="Get latest PaddleOCR-VL document intelligence parsing run",
+    description="Retrieves the most recent document parsing run including layout blocks, reading orders, and Markdown.",
+)
+async def get_parsed_document(
+    id: str,
+    doc_repo: Annotated[DocumentRepository, Depends(get_document_repository)],
+    parsing_repo: Annotated[Optional[DocumentParsingRepository], Depends(get_parsing_repository)] = None,
+) -> Optional[DocumentParsingRunResponse]:
+    """Retrieve latest parsed document layout and Markdown from MongoDB."""
+    doc = await doc_repo.get_by_id(id)
+    if not doc:
+        raise EntityNotFoundError("Document", id)
+
+    if parsing_repo is None:
+        # Fallback for demo sample when db is mock/unconnected
+        if doc.sample:
+            return DocumentParsingRunResponse(
+                id=f"run-sample-{doc.id}",
+                document_id=doc.id,
+                job_id="sample-job",
+                provider_id="paddleocr-cloud",
+                model_version="PaddleOCR-VL-1.6",
+                page_count=1,
+                markdown_text="# Site Inspection Report · Sample\n\nThe north wall measures 4.8 metres. Crack propagation observed.",
+                pages=[
+                    ParsedPageResponse(
+                        page_index=0,
+                        width=1000,
+                        height=1414,
+                        markdown_text="# Site Inspection Report · Sample\n\nThe north wall measures 4.8 metres.",
+                        blocks=[
+                            LayoutBlockResponse(
+                                block_id="blk-p0-001",
+                                page_index=0,
+                                block_type="paragraph_title",
+                                bounding_box=BoundingBox(x=5.0, y=5.0, w=85.0, h=10.0),
+                                content="# Site Inspection Report · Sample",
+                                reading_order=1,
+                                confidence=0.98,
+                            ),
+                            LayoutBlockResponse(
+                                block_id="blk-p0-002",
+                                page_index=0,
+                                block_type="text",
+                                bounding_box=BoundingBox(x=5.0, y=18.0, w=85.0, h=25.0),
+                                content="The north wall measures 4.8 metres. Crack propagation observed.",
+                                reading_order=2,
+                                confidence=0.94,
+                            ),
+                        ],
+                        reading_order_sequence=["blk-p0-001", "blk-p0-002"],
+                        tables_count=0,
+                    )
+                ],
+                total_blocks=2,
+                execution_time_ms=12.0,
+                created_at=datetime.now(timezone.utc).isoformat(),
+            )
+        return None
+
+    run = await parsing_repo.get_latest_by_document(id)
+    if not run:
+        if doc.sample:
+            # Generate deterministic sample response for interactive sample fixture
+            return DocumentParsingRunResponse(
+                id=f"run-sample-{doc.id}",
+                document_id=doc.id,
+                job_id="sample-job",
+                provider_id="paddleocr-cloud",
+                model_version="PaddleOCR-VL-1.6",
+                page_count=1,
+                markdown_text="# Site Inspection Report · Sample\n\nThe north wall measures 4.8 metres. Crack propagation observed.",
+                pages=[
+                    ParsedPageResponse(
+                        page_index=0,
+                        width=1000,
+                        height=1414,
+                        markdown_text="# Site Inspection Report · Sample\n\nThe north wall measures 4.8 metres.",
+                        blocks=[
+                            LayoutBlockResponse(
+                                block_id="blk-p0-001",
+                                page_index=0,
+                                block_type="paragraph_title",
+                                bounding_box=BoundingBox(x=5.0, y=5.0, w=85.0, h=10.0),
+                                content="# Site Inspection Report · Sample",
+                                reading_order=1,
+                                confidence=0.98,
+                            ),
+                            LayoutBlockResponse(
+                                block_id="blk-p0-002",
+                                page_index=0,
+                                block_type="text",
+                                bounding_box=BoundingBox(x=5.0, y=18.0, w=85.0, h=25.0),
+                                content="The north wall measures 4.8 metres. Crack propagation observed.",
+                                reading_order=2,
+                                confidence=0.94,
+                            ),
+                        ],
+                        reading_order_sequence=["blk-p0-001", "blk-p0-002"],
+                        tables_count=0,
+                    )
+                ],
+                total_blocks=2,
+                execution_time_ms=12.0,
+                created_at=datetime.now(timezone.utc).isoformat(),
+            )
+        return None
+
+    pages_resp = [
+        ParsedPageResponse(
+            page_index=p.page_index,
+            width=p.width,
+            height=p.height,
+            markdown_text=p.markdown_text,
+            blocks=[
+                LayoutBlockResponse(
+                    block_id=b.block_id,
+                    page_index=b.page_index,
+                    block_type=b.block_type,
+                    bounding_box=b.bounding_box,
+                    polygon=b.polygon,
+                    raw_bbox=b.raw_bbox,
+                    content=b.content,
+                    reading_order=b.reading_order,
+                    confidence=b.confidence,
+                )
+                for b in p.blocks
+            ],
+            reading_order_sequence=p.reading_order_sequence,
+            tables_count=p.tables_count,
+        )
+        for p in run.pages
+    ]
+
+    return DocumentParsingRunResponse(
+        id=run.id,
+        document_id=run.document_id,
+        job_id=run.job_id,
+        provider_id=run.provider_id,
+        model_version=run.model_version,
+        provider_job_id=run.provider_job_id,
+        input_sha256=run.input_sha256,
+        page_count=run.page_count,
+        markdown_text=run.markdown_text,
+        pages=pages_resp,
+        total_blocks=run.total_blocks,
+        execution_time_ms=run.execution_time_ms,
+        created_at=run.created_at,
+    )
+
+
+@router.get(
+    "/{id}/parsing-history",
+    response_model=List[DocumentParsingRunResponse],
+    summary="List document intelligence parsing history",
+    description="Retrieves historical parsing runs for the document.",
+)
+async def list_parsing_history(
+    id: str,
+    doc_repo: Annotated[DocumentRepository, Depends(get_document_repository)],
+    parsing_repo: Annotated[Optional[DocumentParsingRepository], Depends(get_parsing_repository)] = None,
+) -> List[DocumentParsingRunResponse]:
+    """Retrieve history of parsing runs for a document."""
+    doc = await doc_repo.get_by_id(id)
+    if not doc:
+        raise EntityNotFoundError("Document", id)
+
+    if parsing_repo is None:
+        return []
+
+    runs = await parsing_repo.list_by_document(id)
+    return [
+        DocumentParsingRunResponse(
+            id=r.id,
+            document_id=r.document_id,
+            job_id=r.job_id,
+            provider_id=r.provider_id,
+            model_version=r.model_version,
+            provider_job_id=r.provider_job_id,
+            input_sha256=r.input_sha256,
+            page_count=r.page_count,
+            markdown_text=r.markdown_text,
+            pages=[
+                ParsedPageResponse(
+                    page_index=p.page_index,
+                    width=p.width,
+                    height=p.height,
+                    markdown_text=p.markdown_text,
+                    blocks=[
+                        LayoutBlockResponse(
+                            block_id=b.block_id,
+                            page_index=b.page_index,
+                            block_type=b.block_type,
+                            bounding_box=b.bounding_box,
+                            polygon=b.polygon,
+                            raw_bbox=b.raw_bbox,
+                            content=b.content,
+                            reading_order=b.reading_order,
+                            confidence=b.confidence,
+                        )
+                        for b in p.blocks
+                    ],
+                    reading_order_sequence=p.reading_order_sequence,
+                    tables_count=p.tables_count,
+                )
+                for p in r.pages
+            ],
+            total_blocks=r.total_blocks,
+            execution_time_ms=r.execution_time_ms,
+            created_at=r.created_at,
+        )
+        for r in runs
+    ]
 

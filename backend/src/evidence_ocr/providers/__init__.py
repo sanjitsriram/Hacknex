@@ -8,6 +8,10 @@ from evidence_ocr.providers.ocr import (
     ProviderMetadata,
 )
 from evidence_ocr.providers.paddleocr import PaddleOCRCloudProvider
+from evidence_ocr.providers.paddleocr_vl import (
+    PaddleOCRVLCloudProvider,
+    ParsedDocumentResult,
+)
 from evidence_ocr.providers.storage import (
     BaseStorageProvider,
     MockStorageProvider,
@@ -24,6 +28,8 @@ __all__ = [
     "BaseOCRProvider",
     "MockOCRProvider",
     "PaddleOCRCloudProvider",
+    "PaddleOCRVLCloudProvider",
+    "ParsedDocumentResult",
     "TrOCRProvider",
     "OCRResult",
     "OCRWord",

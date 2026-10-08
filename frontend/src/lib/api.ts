@@ -243,3 +243,82 @@ export async function fetchDocumentJobsApi(documentId: string): Promise<JobStatu
   return await res.json();
 }
 
+export type LayoutBlockDetail = {
+  block_id: string;
+  page_index: number;
+  block_type: string;
+  bounding_box: { x: number; y: number; w: number; h: number };
+  polygon?: number[][];
+  raw_bbox?: number[];
+  content: string;
+  reading_order: number;
+  confidence?: number;
+};
+
+export type ParsedPageDetail = {
+  page_index: number;
+  width: number;
+  height: number;
+  markdown_text: string;
+  blocks: LayoutBlockDetail[];
+  reading_order_sequence: string[];
+  tables_count: number;
+};
+
+export type DocumentParsingRunResult = {
+  id: string;
+  document_id: string;
+  job_id: string;
+  provider_id: string;
+  model_version: string;
+  provider_job_id?: string;
+  input_sha256?: string;
+  page_count: number;
+  markdown_text: string;
+  pages: ParsedPageDetail[];
+  total_blocks: number;
+  execution_time_ms: number;
+  created_at: string;
+};
+
+export async function scheduleDocumentIntelligenceApi(
+  documentId: string,
+  pipelineVersion: string = 'v1.0.0'
+): Promise<JobResponseData> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/document-intelligence`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pipeline_version: pipelineVersion }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData?.error?.message || `Document intelligence scheduling failed (${res.status}): ${res.statusText}`;
+    throw new Error(message);
+  }
+
+  return await res.json();
+}
+
+export async function fetchParsedDocumentApi(documentId: string): Promise<DocumentParsingRunResult | null> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/parsed-document`);
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData?.error?.message || `Failed to fetch parsed document (${res.status}): ${res.statusText}`;
+    throw new Error(message);
+  }
+  return await res.json();
+}
+
+export async function fetchParsingHistoryApi(documentId: string): Promise<DocumentParsingRunResult[]> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/parsing-history`);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData?.error?.message || `Failed to fetch parsing history (${res.status}): ${res.statusText}`;
+    throw new Error(message);
+  }
+  return await res.json();
+}
+
+

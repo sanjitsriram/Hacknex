@@ -1,0 +1,60 @@
+{
+  "benchmark_id": "eval-paddleocr-vl-cloud-iam-v1",
+  "timestamp": "2026-10-08T19:32:57Z",
+  "dataset_name": "IAM-Handwriting-Line-Test",
+  "dataset_sha256": "0f7270051136d5d2708ef1d2a0d276c7809847f0aada0799a572ea8a4d118f2d",
+  "provider": "paddleocr-vl-cloud",
+  "model_identifier": "PaddleOCR-VL-1.6",
+  "evaluated_samples": 3,
+  "total_characters_evaluated": 243,
+  "total_words_evaluated": 51,
+  "total_layout_blocks_parsed": 2,
+  "total_tables_detected": 0,
+  "metrics": {
+    "cer": 0.6749,
+    "wer": 0.8824,
+    "exact_match_rate_pct": 0.0,
+    "exact_matches_count": 0
+  },
+  "latencies": {
+    "mean_sec": 67.595,
+    "median_p50_sec": 7.766,
+    "min_sec": 6.214,
+    "max_sec": 188.804
+  },
+  "sample_evaluations": [
+    {
+      "id": "iam-test-00",
+      "filename": "sample_00.png",
+      "style_category": "punctuation_and_complex",
+      "ground_truth": "assuredness \" Bella Bella Marie \" ( Parlophone ) , a lively song that changes tempo mid-way .",
+      "prediction": "nueu \"Delia Delia\" mit (Olausdonne), a lieu la sua (And Dance) tem",
+      "latency_sec": 6.214,
+      "cer": 0.6237,
+      "wer": 0.9444,
+      "exact_match": false
+    },
+    {
+      "id": "iam-test-01",
+      "filename": "sample_01.png",
+      "style_category": "punctuation_and_complex",
+      "ground_truth": "I don't think he will storm the charts with this one , but it 's a good start .",
+      "prediction": "\u300a\u300aStorm the chart is with this one, but it's a good",
+      "latency_sec": 7.766,
+      "cer": 0.443,
+      "wer": 0.7368,
+      "exact_match": false
+    },
+    {
+      "id": "iam-test-02",
+      "filename": "sample_02.png",
+      "style_category": "numbers_and_punctuation",
+      "ground_truth": "CHRIS CHARLES , 39 , who lives in Stockton-on-Tees , is an accountant .",
+      "prediction": "",
+      "latency_sec": 188.804,
+      "cer": 1.0,
+      "wer": 1.0,
+      "exact_match": false
+    }
+  ]
+}

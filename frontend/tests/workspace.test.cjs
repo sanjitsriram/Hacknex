@@ -39,4 +39,8 @@ test('api module exports and document mapping contract', () => {
   assert.equal(typeof apiMod.exports.getJobStatusApi, 'function');
   assert.equal(typeof apiMod.exports.fetchDocumentRegionsApi, 'function');
   assert.equal(typeof apiMod.exports.fetchDocumentJobsApi, 'function');
+  assert.equal(typeof apiMod.exports.scheduleDocumentIntelligenceApi, 'function');
+  assert.equal(typeof apiMod.exports.fetchParsedDocumentApi, 'function');
+  assert.equal(typeof apiMod.exports.fetchParsingHistoryApi, 'function');
 });
+

@@ -36,6 +36,7 @@ class ProcessingJob(BaseModel):
     document_id: str = Field(description="Target document ID")
     pipeline_version: str = Field(default="v1.0.0", description="Reproducible pipeline version tag")
     idempotency_key: Optional[str] = Field(default=None, description="Client idempotency key")
+    task_type: str = Field(default="recognition", description="Job task type: recognition | document_intelligence")
     provider: str = Field(default="paddleocr-cloud", description="Cloud or local OCR provider")
     model: str = Field(default="PP-OCRv6", description="OCR model identifier")
     provider_job_id: Optional[str] = Field(default=None, description="Remote cloud provider job ID")

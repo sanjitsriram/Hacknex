@@ -8,11 +8,13 @@ from evidence_ocr.core.config import Settings, get_settings
 from evidence_ocr.db.client import DatabaseManager, get_db, get_db_manager
 from evidence_ocr.db.repositories.documents import DocumentRepository
 from evidence_ocr.db.repositories.jobs import JobRepository
+from evidence_ocr.db.repositories.parsing import DocumentParsingRepository
 from evidence_ocr.db.repositories.regions import RegionRepository
 from evidence_ocr.evaluation.service import EvaluationService
 from evidence_ocr.ingestion.service import IngestionService
 from evidence_ocr.providers.ocr import BaseOCRProvider, MockOCRProvider
 from evidence_ocr.providers.paddleocr import PaddleOCRCloudProvider
+from evidence_ocr.providers.paddleocr_vl import PaddleOCRVLCloudProvider
 from evidence_ocr.providers.storage import BaseStorageProvider, GridFSStorageProvider, MockStorageProvider
 from evidence_ocr.providers.trocr import TrOCRProvider
 from evidence_ocr.recognition.service import RecognitionService
@@ -55,9 +57,18 @@ def get_region_repository() -> Optional[RegionRepository]:
     return None
 
 
+def get_parsing_repository() -> Optional[DocumentParsingRepository]:
+    """Provide DocumentParsingRepository instance bound to active database if connected."""
+    db_mgr = get_db_manager()
+    if db_mgr.is_connected:
+        return DocumentParsingRepository(db_mgr.get_database())
+    return None
+
+
 # TrOCR Provider Singleton
 _trocr_provider_instance: Optional[TrOCRProvider] = None
 _paddleocr_provider_instance: Optional[PaddleOCRCloudProvider] = None
+_paddleocr_vl_provider_instance: Optional[PaddleOCRVLCloudProvider] = None
 
 
 def get_paddleocr_provider(
@@ -75,6 +86,23 @@ def get_paddleocr_provider(
             max_concurrent_jobs=settings.paddleocr_max_concurrent_jobs,
         )
     return _paddleocr_provider_instance
+
+
+def get_paddleocr_vl_provider(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> PaddleOCRVLCloudProvider:
+    """Provide official PaddleOCR-VL Cloud Provider for document intelligence."""
+    global _paddleocr_vl_provider_instance
+    if _paddleocr_vl_provider_instance is None:
+        _paddleocr_vl_provider_instance = PaddleOCRVLCloudProvider(
+            access_token=settings.paddleocr_access_token,
+            model=settings.paddleocr_vl_model,
+            base_url=settings.paddleocr_base_url,
+            request_timeout=settings.paddleocr_vl_request_timeout_seconds,
+            poll_timeout=settings.paddleocr_vl_poll_timeout_seconds,
+            max_concurrent_jobs=settings.paddleocr_vl_max_concurrent_jobs,
+        )
+    return _paddleocr_vl_provider_instance
 
 
 def get_ocr_provider(
@@ -141,17 +169,21 @@ def get_review_service(
 def get_worker_runner(
     job_repo: Annotated[JobRepository, Depends(get_job_repository)],
     paddle_provider: Annotated[PaddleOCRCloudProvider, Depends(get_paddleocr_provider)],
+    paddle_vl_provider: Annotated[PaddleOCRVLCloudProvider, Depends(get_paddleocr_vl_provider)],
     storage: Annotated[BaseStorageProvider, Depends(get_storage_provider)],
     doc_repo: Annotated[DocumentRepository, Depends(get_document_repository)],
     recognition_service: Annotated[RecognitionService, Depends(get_recognition_service)],
 ) -> WorkerRunner:
-    """Provide WorkerRunner configured with PP-OCRv6 cloud and storage providers."""
+    """Provide WorkerRunner configured with PP-OCRv6 cloud, PaddleOCR-VL, and storage providers."""
     region_repo = get_region_repository()
+    parsing_repo = get_parsing_repository()
     return WorkerRunner(
         job_repo=job_repo,
         cloud_ocr_provider=paddle_provider,
+        paddle_vl_provider=paddle_vl_provider,
         storage_provider=storage,
         doc_repo=doc_repo,
         region_repo=region_repo,
+        parsing_repo=parsing_repo,
         recognition_service=recognition_service,
     )
