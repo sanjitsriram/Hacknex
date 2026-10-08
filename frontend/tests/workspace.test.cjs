@@ -27,3 +27,11 @@ test('malformed storage is rejected and invalid audit entries are ignored', () =
   const result = parseSavedState(JSON.stringify({text:baseText,preferences:defaultPreferences,corrections:{r1:'4.8',r2:55},events:[null,{}],reviewed:true}));
   assert.equal(result.reviewed,false); assert.deepEqual(result.events,[]); assert.deepEqual(result.corrections,{r1:'4.8'});
 });
+test('api module exports and document mapping contract', () => {
+  const apiCode = ts.transpileModule(fs.readFileSync('src/lib/api.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+  const apiMod = { exports: {} };
+  new Function('exports', 'module', apiCode)(apiMod.exports, apiMod);
+  assert.ok(apiMod.exports.API_BASE);
+  assert.equal(typeof apiMod.exports.fetchDocumentsFromApi, 'function');
+  assert.equal(typeof apiMod.exports.uploadDocumentToApi, 'function');
+});

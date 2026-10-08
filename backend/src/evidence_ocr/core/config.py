@@ -45,12 +45,21 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", description="Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL")
     log_format: str = Field(default="console", description="Format: console or json")
 
-    # Document Ingestion limits (aligned with frontend contract)
+    # Document Ingestion & Storage (Phase 2 MongoDB GridFS)
+    gridfs_bucket_name: str = Field(
+        default="evidence_files", description="MongoDB GridFS bucket for original binary files"
+    )
     max_upload_size_bytes: int = Field(
-        default=20 * 1024 * 1024, description="Maximum allowed document file size (20 MB)"
+        default=10 * 1024 * 1024, description="Maximum allowed document file size (10 MiB default)"
+    )
+    max_pdf_pages: int = Field(
+        default=20, description="Maximum allowed pages for uploaded PDF documents"
+    )
+    upload_timeout_seconds: int = Field(
+        default=30, description="Document upload request timeout in seconds"
     )
     allowed_mime_types: List[str] = Field(
-        default=["image/png", "image/jpeg", "image/webp", "application/pdf"],
+        default=["application/pdf", "image/png", "image/jpeg", "image/webp"],
         description="Allowed document MIME types",
     )
 

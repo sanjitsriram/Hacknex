@@ -17,9 +17,17 @@ class DocumentUploadResponse(BaseModel):
     """Response returned upon successful document upload."""
 
     document_id: str = Field(description="Generated unique document identifier")
-    source_url: Optional[str] = Field(default=None, description="Direct or presigned URL to stored original")
+    name: str = Field(default="Untitled document", description="Document title")
+    original_filename: Optional[str] = Field(default=None, description="Original filename")
+    content_type: Optional[str] = Field(default=None, description="Verified MIME type")
+    file_size_bytes: Optional[int] = Field(default=None, description="Exact file size in bytes")
+    sha256: Optional[str] = Field(default=None, description="SHA-256 digest")
+    gridfs_file_id: Optional[str] = Field(default=None, description="GridFS file identifier string")
+    page_count: Optional[int] = Field(default=1, description="Verified page count")
+    source_url: Optional[str] = Field(default=None, description="Relative access URL to stored original")
     status: DocumentStatus = Field(description="Initial document lifecycle status")
     revision: int = Field(default=1, description="Initial revision counter")
+    created_at: Optional[str] = Field(default=None, description="ISO creation timestamp")
 
 
 class DocumentItemResponse(BaseModel):
@@ -37,6 +45,34 @@ class DocumentItemResponse(BaseModel):
     url: Optional[str] = Field(default=None, description="Source URL")
     mime: Optional[str] = Field(default=None, description="MIME type")
     revision: int = Field(default=1, description="Document revision version")
+    sha256: Optional[str] = Field(default=None, description="SHA-256 digest")
+    gridfs_file_id: Optional[str] = Field(default=None, description="GridFS file identifier string")
+    file_size_bytes: Optional[int] = Field(default=None, description="File size in bytes")
+
+
+class DocumentDetailResponse(BaseModel):
+    """Full detail schema for single document inspection."""
+
+    id: str = Field(description="Document ID")
+    document_id: str = Field(description="Document ID alias")
+    name: str = Field(description="Document title")
+    original_filename: Optional[str] = Field(default=None, description="Original filename")
+    content_type: Optional[str] = Field(default=None, description="MIME type")
+    file_size_bytes: Optional[int] = Field(default=None, description="File size in bytes")
+    sha256: Optional[str] = Field(default=None, description="SHA-256 digest")
+    gridfs_file_id: Optional[str] = Field(default=None, description="GridFS file ID")
+    page_count: int = Field(default=1, description="Total verified page count")
+    pages: int = Field(default=1, description="Page count")
+    kind: str = Field(default="Field notes")
+    language: str = Field(default="English")
+    status: str = Field(description="Status string")
+    processing_status: str = Field(description="Lifecycle status string")
+    sample: bool = Field(default=False)
+    source_url: Optional[str] = Field(default=None)
+    revision: int = Field(default=1)
+    schema_version: int = Field(default=1)
+    created_at: str
+    updated_at: str
 
 
 class DocumentListResponse(BaseModel):

@@ -14,9 +14,19 @@ class DocumentRepository(BaseRepository):
     def __init__(self, db: AsyncDatabase) -> None:
         super().__init__(db, collection_name="documents")
 
+    async def ensure_indexes(self) -> None:
+        """Create indexes on documents collection for fast queries and uniqueness."""
+        try:
+            await self.collection.create_index([("id", 1)], unique=True)
+            await self.collection.create_index([("created_at", -1)])
+            await self.collection.create_index([("status", 1)])
+            await self.collection.create_index([("sha256", 1)])
+        except Exception as exc:
+            logger.warning("Could not create indexes on documents collection: %s", exc)
+
     async def get_by_id(self, document_id: str) -> Optional[DocumentEntity]:
-        """Fetch a document by its unique string identifier."""
-        doc = await self.find_by_id(document_id)
+        """Fetch a document by its unique string identifier (id, document_id, or _id)."""
+        doc = await self.find_one({"$or": [{"id": document_id}, {"document_id": document_id}, {"_id": document_id}]})
         if not doc:
             return None
         return DocumentEntity(**doc)

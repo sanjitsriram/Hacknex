@@ -109,6 +109,30 @@ class ProviderUnavailableError(EvidenceOCRError):
         )
 
 
+class StorageOperationError(EvidenceOCRError):
+    """Raised when an object storage or GridFS operation fails."""
+
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+        super().__init__(
+            message=message,
+            code="STORAGE_ERROR",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            details=details,
+        )
+
+
+class DatabaseOperationError(EvidenceOCRError):
+    """Raised when an unexpected database persistence operation fails."""
+
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+        super().__init__(
+            message=message,
+            code="DATABASE_ERROR",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            details=details,
+        )
+
+
 def format_error_response(
     code: str,
     message: str,

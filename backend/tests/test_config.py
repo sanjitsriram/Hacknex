@@ -9,7 +9,9 @@ def test_settings_default_values():
     settings = Settings()
     assert settings.app_name == "EvidenceOCR Backend"
     assert settings.api_v1_prefix == "/api/v1"
-    assert settings.max_upload_size_bytes == 20 * 1024 * 1024
+    assert settings.max_upload_size_bytes == 10 * 1024 * 1024
+    assert settings.gridfs_bucket_name == "evidence_files"
+    assert settings.max_pdf_pages == 20
     assert "image/png" in settings.allowed_mime_types
     assert "application/pdf" in settings.allowed_mime_types
 

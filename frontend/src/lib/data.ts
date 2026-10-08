@@ -1,5 +1,5 @@
 export type ReviewStatus = 'Needs review' | 'Reviewed' | 'Ready for backend';
-export type DocumentItem = { id: string; name: string; kind: string; language: string; pages: number; status: ReviewStatus; added: string; size: string; sample: boolean; url?: string; mime?: string };
+export type DocumentItem = { id: string; name: string; kind: string; language: string; pages: number; status: ReviewStatus; added: string; size: string; sample: boolean; url?: string; mime?: string; sha256?: string; gridfs_file_id?: string };
 export type Region = { id: string; line: string; original: string; alternatives: string[]; reason: string; x: number; y: number; w: number; h: number };
 export const samples: DocumentItem[] = [
   { id: 'demo-1', name: 'Field notes — site inspection', kind: 'Field notes', language: 'English', pages: 1, status: 'Needs review', added: 'Sample document', size: 'Illustrative source', sample: true },

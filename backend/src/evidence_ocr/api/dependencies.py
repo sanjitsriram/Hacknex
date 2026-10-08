@@ -10,15 +10,18 @@ from evidence_ocr.db.repositories.documents import DocumentRepository
 from evidence_ocr.db.repositories.jobs import JobRepository
 from evidence_ocr.evaluation.service import EvaluationService
 from evidence_ocr.ingestion.service import IngestionService
-from evidence_ocr.providers.storage import BaseStorageProvider, MockStorageProvider
+from evidence_ocr.providers.storage import BaseStorageProvider, GridFSStorageProvider, MockStorageProvider
 from evidence_ocr.review.service import ReviewService
 from evidence_ocr.workers.runner import WorkerRunner
 
 
-# Storage Provider Singleton
-@lru_cache(maxsize=1)
-def get_storage_provider() -> BaseStorageProvider:
-    """Return storage provider instance."""
+def get_storage_provider(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> BaseStorageProvider:
+    """Provide storage provider: GridFSStorageProvider when connected to MongoDB, or MockStorageProvider."""
+    db_mgr = get_db_manager()
+    if db_mgr.is_connected:
+        return GridFSStorageProvider(db=db_mgr.get_database(), bucket_name=settings.gridfs_bucket_name)
     return MockStorageProvider()
 
 
@@ -50,6 +53,7 @@ def get_ingestion_service(
         storage_provider=storage,
         allowed_mimes=settings.allowed_mime_types,
         max_size_bytes=settings.max_upload_size_bytes,
+        max_pdf_pages=settings.max_pdf_pages,
     )
 
 

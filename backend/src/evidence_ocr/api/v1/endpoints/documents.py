@@ -4,10 +4,12 @@ import uuid
 from datetime import datetime, timezone
 from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
+from fastapi.responses import StreamingResponse
 from evidence_ocr.api.dependencies import (
     get_document_repository,
     get_ingestion_service,
     get_job_repository,
+    get_storage_provider,
     get_worker_runner,
 )
 from evidence_ocr.core.errors import EntityNotFoundError
@@ -16,7 +18,9 @@ from evidence_ocr.db.repositories.jobs import JobRepository
 from evidence_ocr.ingestion.service import IngestionService
 from evidence_ocr.models.document import DocumentStatus
 from evidence_ocr.models.job import JobStage, JobStatus, ProcessingJob
+from evidence_ocr.providers.storage import BaseStorageProvider
 from evidence_ocr.schemas.documents import (
+    DocumentDetailResponse,
     DocumentItemResponse,
     DocumentListResponse,
     DocumentUploadResponse,
@@ -32,30 +36,35 @@ router = APIRouter(prefix="/documents", tags=["Documents"])
     response_model=DocumentUploadResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Upload and ingest a document",
-    description="Ingests a new document, verifies constraints (PNG/JPG/WebP/PDF, <=20MB), and stores original.",
+    description="Ingests a new document, verifies constraints (PDF/PNG/JPEG, <=10MB, <=20 pages), and stores in MongoDB GridFS.",
 )
 async def upload_document(
-    file: Annotated[UploadFile, File(description="Document binary file")],
+    file: Annotated[UploadFile, File(description="Document binary file (PDF, PNG, JPEG)")],
     title: Annotated[str, Form(description="Document title")] = "Untitled document",
     kind: Annotated[str, Form(description="Document category")] = "Field notes",
     expected_language: Annotated[str, Form(description="Expected language")] = "English",
     ingestion_service: Annotated[IngestionService, Depends(get_ingestion_service)] = None,
 ) -> DocumentUploadResponse:
-    """Handle multipart document intake."""
-    file_bytes = await file.read()
-    entity = await ingestion_service.ingest_document(
+    """Handle multipart document upload and incremental ingestion into GridFS."""
+    entity = await ingestion_service.ingest_upload(
+        file=file,
         title=title,
         kind=kind,
         language=expected_language,
-        filename=file.filename,
-        content_type=file.content_type,
-        file_bytes=file_bytes,
     )
     return DocumentUploadResponse(
         document_id=entity.id,
+        name=entity.name,
+        original_filename=entity.original_filename,
+        content_type=entity.content_type,
+        file_size_bytes=entity.file_size_bytes,
+        sha256=entity.sha256,
+        gridfs_file_id=entity.gridfs_file_id,
+        page_count=entity.page_count,
         source_url=entity.source_url,
         status=entity.status,
         revision=entity.revision,
+        created_at=entity.created_at,
     )
 
 
@@ -87,13 +96,16 @@ async def list_documents(
             kind=d.kind,
             language=d.language,
             pages=d.pages,
-            status=d.status.value,
+            status=d.status.value if hasattr(d.status, "value") else str(d.status),
             added=d.added,
             size=d.size,
             sample=d.sample,
             url=d.source_url,
-            mime=d.mime,
+            mime=d.mime or d.content_type,
             revision=d.revision,
+            sha256=d.sha256,
+            gridfs_file_id=d.gridfs_file_id,
+            file_size_bytes=d.file_size_bytes,
         )
         for d in entities
     ]
@@ -102,6 +114,99 @@ async def list_documents(
         items=items,
         next_cursor=str(skip + limit) if (skip + limit) < total else None,
         total=total,
+    )
+
+
+@router.get(
+    "/{document_id}",
+    response_model=DocumentDetailResponse,
+    summary="Get document details",
+    description="Retrieve full metadata for a specific document.",
+)
+async def get_document(
+    document_id: str,
+    doc_repo: Annotated[DocumentRepository, Depends(get_document_repository)] = None,
+) -> DocumentDetailResponse:
+    """Retrieve complete metadata for a document."""
+    doc = await doc_repo.get_by_id(document_id)
+    if not doc:
+        raise EntityNotFoundError("Document", document_id)
+
+    status_str = doc.status.value if hasattr(doc.status, "value") else str(doc.status)
+    return DocumentDetailResponse(
+        id=doc.id,
+        document_id=doc.document_id or doc.id,
+        name=doc.name,
+        original_filename=doc.original_filename,
+        content_type=doc.content_type or doc.mime,
+        file_size_bytes=doc.file_size_bytes,
+        sha256=doc.sha256,
+        gridfs_file_id=doc.gridfs_file_id,
+        page_count=doc.page_count or doc.pages,
+        pages=doc.pages,
+        kind=doc.kind,
+        language=doc.language,
+        status=status_str,
+        processing_status=doc.processing_status or status_str,
+        sample=doc.sample,
+        source_url=doc.source_url,
+        revision=doc.revision,
+        schema_version=doc.schema_version,
+        created_at=doc.created_at,
+        updated_at=doc.updated_at,
+    )
+
+
+@router.get(
+    "/{document_id}/file",
+    summary="Stream original document binary",
+    description="Stream bit-for-bit identical original file from MongoDB GridFS.",
+)
+async def stream_document_file(
+    document_id: str,
+    download: Annotated[bool, Query(description="Force download attachment")] = False,
+    doc_repo: Annotated[DocumentRepository, Depends(get_document_repository)] = None,
+    storage: Annotated[BaseStorageProvider, Depends(get_storage_provider)] = None,
+):
+    """Stream stored original file bytes from GridFS."""
+    doc = await doc_repo.get_by_id(document_id)
+    if not doc:
+        raise EntityNotFoundError("Document", document_id)
+
+    file_key = doc.gridfs_file_id or doc.file_key or doc.id
+    if not file_key:
+        raise EntityNotFoundError("FileKey", document_id)
+
+    grid_out = await storage.open_download_stream(file_key)
+    content_type = (
+        doc.content_type
+        or doc.mime
+        or getattr(grid_out, "metadata", {}).get("content_type", "application/octet-stream")
+    )
+    safe_filename = doc.original_filename or f"{document_id}.bin"
+    disposition_type = "attachment" if download else "inline"
+
+    async def file_stream_generator():
+        while True:
+            chunk = await grid_out.read(64 * 1024)
+            if not chunk:
+                break
+            yield chunk
+
+    headers = {
+        "Content-Disposition": f'{disposition_type}; filename="{safe_filename}"',
+    }
+    if doc.file_size_bytes:
+        headers["Content-Length"] = str(doc.file_size_bytes)
+    elif hasattr(grid_out, "length") and grid_out.length:
+        headers["Content-Length"] = str(grid_out.length)
+    if doc.sha256:
+        headers["ETag"] = f'"{doc.sha256}"'
+
+    return StreamingResponse(
+        file_stream_generator(),
+        media_type=content_type,
+        headers=headers,
     )
 
 
