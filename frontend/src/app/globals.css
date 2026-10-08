@@ -38,6 +38,18 @@
 .illegible-flag-badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:600;background:#fdeeed;color:#a83222;border:1px solid #f7c3bc;padding:2px 6px;border-radius:3px}
 
 /* Phase 5 PaddleOCR-VL-1.6 Document Intelligence Styles */
+.workspace-empty {
+  min-height: calc(100vh - 170px);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 22px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.workspace-empty h1 { margin: 8px 0; }
+.workspace-empty p { max-width: 560px; margin: 0; color: var(--muted); }
 .vl-action-banner{background:#fbfaff;border:1px solid #e2dbf5;border-radius:8px;padding:16px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:14px;box-shadow:0 1px 4px rgba(78,52,143,0.04)}
 .vl-action-banner .banner-info h4{font-size:12px;font-weight:600;color:#2c1e55;margin:0 0 3px;display:flex;align-items:center;gap:6px}
 .vl-action-banner .banner-info p{font-size:11px;color:#675e82;margin:0}
@@ -104,4 +116,45 @@
 .tri-model-table tr:hover td{background:#fafcf9}
 .model-cell{font-family:Georgia,serif;font-size:12px;line-height:1.4}
 .model-cell small{display:block;font-family:system-ui,sans-serif;font-size:9px;color:#798b74;margin-top:2px}
+
+/* Security Session Isolation Pill */
+.session-pill{display:inline-flex;align-items:center;gap:6px;background:#f1f6ef;color:#27523f;border:1px solid #d4e2d0;border-radius:20px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s ease}
+/* Phase 6 Evidence Fusion & Adaptive Recovery Styles */
+.fusion-action-banner{background:#f8f6fe;border:1px solid #ddd2f8;border-radius:8px;padding:16px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:14px;box-shadow:0 1px 4px rgba(109,40,217,0.06)}
+.fusion-action-banner .banner-info h4{font-size:12px;font-weight:600;color:#3b1e7a;margin:0 0 3px;display:flex;align-items:center;gap:6px}
+.fusion-action-banner .banner-info p{font-size:11px;color:#5b458d;margin:0}
+.fusion-run-btn{display:inline-flex;align-items:center;gap:8px;background:#6d28d9;color:#fff;border:1px solid #5b21b6;border-radius:6px;padding:10px 16px;font-size:11px;font-weight:600;box-shadow:0 2px 4px rgba(109,40,217,0.2);cursor:pointer;white-space:nowrap}
+.fusion-run-btn:hover:not(:disabled){background:#5b21b6}
+.fusion-run-btn:disabled{opacity:.7;cursor:wait}
+
+.fusion-kpi-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;background:#fbfaff;border:1px solid #e3daf7;border-radius:6px;padding:10px 12px;margin-bottom:14px}
+.fusion-kpi-item{text-align:center}
+.fusion-kpi-item span{display:block;font-size:9px;color:#6b5a94;text-transform:uppercase;letter-spacing:0.4px}
+.fusion-kpi-item strong{display:block;font-size:15px;color:#2e1863;font-weight:700;margin-top:2px}
+
+.disagreement-badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:0.3px}
+.disagreement-badge.severity-critical{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+.disagreement-badge.severity-high{background:#ffedd5;color:#9a3412;border:1px solid #fdba74}
+.disagreement-badge.severity-medium{background:#fef9c3;color:#854d0e;border:1px solid #fde047}
+.disagreement-badge.severity-low{background:#f3f4f6;color:#374151;border:1px solid #e5e7eb}
+
+.proposal-card{background:#fff;border:1px solid #dce2d6;border-radius:7px;padding:14px;margin-bottom:12px;transition:box-shadow .15s}
+.proposal-card.review-required{border-left:4px solid #dc2626}
+.proposal-card.auto-proposable{border-left:4px solid #16a34a}
+.proposal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px}
+
+.candidate-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:#f9faf7;border:1px solid #e2e8dc;border-radius:6px;padding:10px 12px;margin:10px 0}
+.candidate-grid-col{font-size:11px}
+.candidate-grid-col .col-label{display:block;font-size:9px;font-weight:700;color:#667a62;text-transform:uppercase;margin-bottom:4px}
+.candidate-grid-col .col-text{font-family:Georgia,serif;font-size:13px;color:#1e3527;line-height:1.4}
+.candidate-grid-col .col-meta{display:block;font-size:9px;color:#889b83;margin-top:4px}
+
+.recovery-box{background:#fbfaff;border:1px solid #e2daf7;border-radius:6px;padding:10px 12px;margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.recovery-box p{margin:0;font-size:11px;color:#533d87}
+.recovery-btn{display:inline-flex;align-items:center;gap:6px;background:#7c3aed;color:#fff;border:none;border-radius:5px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer}
+.recovery-btn:hover:not(:disabled){background:#6d28d9}
+.recovery-btn:disabled{opacity:.6;cursor:wait}
+
+.sticky-review-banner{position:sticky;top:0;z-index:20;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:10px 14px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:14px;box-shadow:0 2px 6px rgba(185,28,28,0.08)}
+
 

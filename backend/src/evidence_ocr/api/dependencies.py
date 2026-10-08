@@ -1,5 +1,6 @@
 """FastAPI dependency injection providers."""
 
+from evidence_ocr.fusion.service import FusionService
 from functools import lru_cache
 from typing import Annotated, Optional
 from fastapi import Depends
@@ -187,3 +188,55 @@ def get_worker_runner(
         parsing_repo=parsing_repo,
         recognition_service=recognition_service,
     )
+
+
+def get_fusion_repository():
+    """Provide FusionRepository bound to the active database, or None if disconnected."""
+    from evidence_ocr.db.repositories.fusion import FusionRepository
+    db_mgr = get_db_manager()
+    if db_mgr.is_connected:
+        return FusionRepository(db_mgr.get_database())
+    return None
+
+
+def get_fusion_service(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> "FusionService":
+    """Provide FusionService with budget controls and repository dependencies from Settings.
+
+    All budget parameters are loaded from typed Pydantic Settings (environment variables).
+    No values are hardcoded — Invariant 4 compliant.
+    """
+    from evidence_ocr.fusion.service import FusionService
+
+    fusion_repo = get_fusion_repository()
+    region_repo = get_region_repository()
+    parsing_repo = get_parsing_repository()
+    storage = get_storage_provider(settings)
+
+    # TrOCR provider for recovery (singleton reuse)
+    try:
+        trocr = get_ocr_provider(settings)
+    except Exception:
+        trocr = None
+
+    cost_weights = {
+        "w1": settings.fusion_alignment_w1,
+        "w2": settings.fusion_alignment_w2,
+        "w3": settings.fusion_alignment_w3,
+        "w4": settings.fusion_alignment_w4,
+    }
+
+    return FusionService(
+        fusion_repo=fusion_repo,
+        region_repo=region_repo,
+        parsing_repo=parsing_repo,
+        storage_provider=storage,
+        trocr_provider=trocr,
+        strategy=settings.fusion_strategy,
+        max_trocr_variants=settings.fusion_max_trocr_variants,
+        recovery_budget_seconds=settings.fusion_recovery_budget_seconds,
+        max_cloud_escalations=settings.fusion_max_cloud_escalations,
+        fusion_cost_weights=cost_weights,
+    )
+

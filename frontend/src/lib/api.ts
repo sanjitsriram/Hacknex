@@ -321,4 +321,173 @@ export async function fetchParsingHistoryApi(documentId: string): Promise<Docume
   return await res.json();
 }
 
+// ---------------------------------------------------------------------------
+// Phase 6: Evidence Fusion & Adaptive Recovery API
+// ---------------------------------------------------------------------------
+
+export type FusionRunSummary = {
+  fusion_run_id: string;
+  document_id: string;
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'provider_unavailable' | string;
+  strategy_version: string;
+  region_count: number;
+  matched_count: number;
+  disagreement_count: number;
+  auto_proposable_count: number;
+  requires_review_count: number;
+  recovery_eligible_count: number;
+  execution_time_ms?: number;
+  error_message?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FusionCandidateItem = {
+  text: string;
+  source: string;
+  confidence?: number;
+};
+
+export type FusionProposalDetail = {
+  id: string;
+  fusion_run_id: string;
+  document_id: string;
+  region_id: string;
+  page_index: number;
+  proposed_text?: string | null;
+  strategy_version: string;
+  auto_proposable: boolean;
+  requires_review: boolean;
+  disagreement_reasons: string[];
+  candidates: FusionCandidateItem[];
+  uncertainty_indicators: string[];
+  recovery_attempt_ids: string[];
+  is_human_verified: boolean;
+  calibration_status: string;
+  source_evidence_reference?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FusionRunDetail = FusionRunSummary & {
+  alignment_algorithm_version: string;
+  proposals: FusionProposalDetail[];
+};
+
+export type DisagreementDetail = {
+  id: string;
+  fusion_run_id: string;
+  document_id: string;
+  region_id: string;
+  page_index: number;
+  disagreement_type: string;
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | string;
+  description: string;
+  candidate_a?: FusionCandidateItem | null;
+  candidate_b?: FusionCandidateItem | null;
+  candidate_c?: FusionCandidateItem | null;
+  conflicting_span?: string | null;
+  alignment_id?: string | null;
+  created_at: string;
+};
+
+export type RecoveryResponseData = {
+  recovery_attempt_id: string;
+  region_id: string;
+  status: string;
+  message: string;
+};
+
+export async function scheduleFusionRunApi(
+  documentId: string,
+  strategy: string = 'evidence-aware-v1'
+): Promise<{ fusion_run_id: string; document_id: string; status: string; message: string }> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/fusion-runs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ strategy }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData?.error?.message || `Fusion run scheduling failed (${res.status}): ${res.statusText}`;
+    throw new Error(message);
+  }
+
+  return await res.json();
+}
+
+export async function fetchFusionRunsApi(documentId: string): Promise<FusionRunSummary[]> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/fusion-runs`);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData?.error?.message || `Failed to fetch fusion runs (${res.status}): ${res.statusText}`;
+    throw new Error(message);
+  }
+  return await res.json();
+}
+
+export async function fetchFusionRunDetailApi(
+  documentId: string,
+  runId: string
+): Promise<FusionRunDetail> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/fusion-runs/${runId}`);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData?.error?.message || `Failed to fetch fusion run detail (${res.status}): ${res.statusText}`;
+    throw new Error(message);
+  }
+  return await res.json();
+}
+
+export async function fetchDisagreementsApi(
+  documentId: string,
+  severity?: string
+): Promise<{ document_id: string; total: number; disagreements: DisagreementDetail[] }> {
+  const url = severity
+    ? `${API_BASE}/documents/${documentId}/disagreements?severity=${encodeURIComponent(severity)}`
+    : `${API_BASE}/documents/${documentId}/disagreements`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData?.error?.message || `Failed to fetch disagreements (${res.status}): ${res.statusText}`;
+    throw new Error(message);
+  }
+  return await res.json();
+}
+
+export async function requestRegionRecoveryApi(
+  documentId: string,
+  regionId: string,
+  fusionRunId?: string
+): Promise<RecoveryResponseData> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/regions/${regionId}/recover`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fusion_run_id: fusionRunId }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData?.error?.message || `Recovery request failed (${res.status}): ${res.statusText}`;
+    throw new Error(message);
+  }
+
+  return await res.json();
+}
+
+export async function fetchRegionEvidenceApi(
+  documentId: string,
+  regionId: string
+): Promise<any> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/regions/${regionId}/evidence`);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData?.error?.message || `Failed to fetch region evidence (${res.status}): ${res.statusText}`;
+    throw new Error(message);
+  }
+  return await res.json();
+}
+
+
 

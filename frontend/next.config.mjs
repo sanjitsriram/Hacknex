@@ -2,6 +2,7 @@
 const config = {
   reactStrictMode: true,
   poweredByHeader: false,
+  devIndicators: false,
   outputFileTracingRoot: process.cwd(),
   experimental: { cpus: 1 },
   async rewrites() {

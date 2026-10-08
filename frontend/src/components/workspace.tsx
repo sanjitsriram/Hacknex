@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Bell, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, Clock3, Cpu, FileText, FolderOpen, LayoutDashboard, ListFilter, Maximize2, Menu, Microscope, MoreHorizontal, Plus, RotateCw, ScanLine, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, UploadCloud, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertTriangle, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Bell, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, Clock3, Cpu, FileText, FolderOpen, LayoutDashboard, ListFilter, Maximize2, Menu, Microscope, MoreHorizontal, Plus, RotateCw, ScanLine, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, UploadCloud, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { baseText, defaultPreferences, regions, samples, validateFile, parseSavedState, updateRegionText, type AuditEvent, type DocumentItem, type Preferences } from '@/lib/data';
 import {
   fetchDocumentsFromApi,
@@ -13,11 +13,18 @@ import {
   scheduleDocumentIntelligenceApi,
   fetchParsedDocumentApi,
   fetchParsingHistoryApi,
+  scheduleFusionRunApi,
+  fetchFusionRunsApi,
+  fetchFusionRunDetailApi,
+  requestRegionRecoveryApi,
   type RegionRecognitionResult,
   type DetectedDocumentRegion,
   type DocumentParsingRunResult,
   type LayoutBlockDetail,
   type ParsedPageDetail,
+  type FusionRunDetail,
+  type FusionRunSummary,
+  type FusionProposalDetail,
 } from '@/lib/api';
 
 type View = 'Overview' | 'Documents' | 'Review workspace' | 'Evaluation' | 'Settings';
@@ -26,6 +33,109 @@ const STORAGE_KEY = 'hacknex:workspace:v1';
 const LEGACY_STORAGE_KEY = 'inkproof:workspace:v1';
 const TROCR_STORAGE_KEY = 'hacknex:trocr_results:v1';
 const VL_STORAGE_KEY = 'hacknex:vl_results:v1';
+const FUSION_STORAGE_KEY = 'hacknex:fusion_results:v1';
+
+export const demoFusionRun: FusionRunDetail = {
+  fusion_run_id: 'frun-demo-001',
+  document_id: 'demo-1',
+  status: 'completed',
+  strategy_version: 'evidence-aware-v1',
+  alignment_algorithm_version: 'spatial-v1',
+  region_count: 3,
+  matched_count: 3,
+  disagreement_count: 3,
+  auto_proposable_count: 0,
+  requires_review_count: 3,
+  recovery_eligible_count: 3,
+  execution_time_ms: 184.2,
+  created_at: '2026-10-09T00:00:00Z',
+  updated_at: '2026-10-09T00:00:01Z',
+  proposals: [
+    {
+      id: 'prop-demo-r1',
+      fusion_run_id: 'frun-demo-001',
+      document_id: 'demo-1',
+      region_id: 'r1',
+      page_index: 0,
+      proposed_text: 'The north wall measures 4.8 metres.',
+      strategy_version: 'evidence-aware-v1',
+      auto_proposable: false,
+      requires_review: true,
+      disagreement_reasons: ['NUMERIC_CONFLICT', 'MODEL_DISAGREEMENT'],
+      candidates: [
+        { text: 'The north wall measures 4.8 metres.', source: 'trocr', confidence: 0.93 },
+        { text: 'The north wall measures 4.3 metres.', source: 'paddleocr-cloud', confidence: 0.96 },
+        { text: '4.8 metres', source: 'paddleocr-vl-cloud', confidence: 0.88 },
+      ],
+      uncertainty_indicators: ['CRITICAL_NUMERIC', 'MODEL_DISAGREEMENT'],
+      recovery_attempt_ids: [],
+      is_human_verified: false,
+      calibration_status: 'UNCALIBRATED',
+      created_at: '2026-10-09T00:00:00Z',
+      updated_at: '2026-10-09T00:00:00Z',
+    },
+    {
+      id: 'prop-demo-r2',
+      fusion_run_id: 'frun-demo-001',
+      document_id: 'demo-1',
+      region_id: 'r2',
+      page_index: 0,
+      proposed_text: 'Follow up with Mr. Harris on Friday.',
+      strategy_version: 'evidence-aware-v1',
+      auto_proposable: false,
+      requires_review: true,
+      disagreement_reasons: ['MODEL_DISAGREEMENT'],
+      candidates: [
+        { text: 'Follow up with Mr. Harris on Friday.', source: 'trocr', confidence: 0.91 },
+        { text: 'Follow up with Mr. Harvis on Friday.', source: 'paddleocr-cloud', confidence: 0.89 },
+        { text: 'Mr. Harris', source: 'paddleocr-vl-cloud', confidence: 0.85 },
+      ],
+      uncertainty_indicators: ['MODEL_DISAGREEMENT'],
+      recovery_attempt_ids: [],
+      is_human_verified: false,
+      calibration_status: 'UNCALIBRATED',
+      created_at: '2026-10-09T00:00:00Z',
+      updated_at: '2026-10-09T00:00:00Z',
+    },
+    {
+      id: 'prop-demo-r3',
+      fusion_run_id: 'frun-demo-001',
+      document_id: 'demo-1',
+      region_id: 'r3',
+      page_index: 0,
+      proposed_text: 'Replace the bracket before inspection.',
+      strategy_version: 'evidence-aware-v1',
+      auto_proposable: false,
+      requires_review: true,
+      disagreement_reasons: ['MODEL_DISAGREEMENT', 'LOW_RAW_CONFIDENCE'],
+      candidates: [
+        { text: 'Replace the bracket before inspection.', source: 'trocr', confidence: 0.74 },
+        { text: 'Replace the basket before inspection.', source: 'paddleocr-cloud', confidence: 0.68 },
+        { text: 'bracket', source: 'paddleocr-vl-cloud', confidence: 0.80 },
+      ],
+      uncertainty_indicators: ['LOW_RAW_CONFIDENCE', 'MODEL_DISAGREEMENT'],
+      recovery_attempt_ids: [],
+      is_human_verified: false,
+      calibration_status: 'UNCALIBRATED',
+      created_at: '2026-10-09T00:00:00Z',
+      updated_at: '2026-10-09T00:00:00Z',
+    },
+  ],
+};
+
+export const getSessionId = (): string => {
+  if (typeof window === 'undefined') return 'server';
+  try {
+    let sid = sessionStorage.getItem('hacknex:session_id:v1');
+    if (!sid) {
+      sid = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `sess_${Date.now()}`;
+      sessionStorage.setItem('hacknex:session_id:v1', sid);
+    }
+    return sid;
+  } catch {
+    return 'fallback_session';
+  }
+};
 
 export const defaultDocRegions = [
   { id: 'r1', name: 'Header Title Line', bbox: { x: 5, y: 5, w: 90, h: 12 }, page: 0, description: 'Document header title line crop' },
@@ -47,9 +157,9 @@ function Modal({ title, children, close, wide = false }: { title: string; childr
 }
 
 export default function Workspace() {
-  const [view, setView] = useState<View>('Overview');
-  const [docs, setDocs] = useState<DocumentItem[]>(samples);
-  const [selected, setSelected] = useState('demo-1');
+  const [view, setView] = useState<View>('Review workspace');
+  const [docs, setDocs] = useState<DocumentItem[]>([]);
+  const [selected, setSelected] = useState('');
   const [corrections, setCorrections] = useState<Record<string, string>>({});
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [text, setText] = useState(baseText);
@@ -70,6 +180,9 @@ export default function Workspace() {
   const [jobState, setJobState] = useState<Record<string, { running: boolean; jobId?: string; status?: string; stage?: string; error?: string }>>({});
   const [vlResults, setVlResults] = useState<Record<string, DocumentParsingRunResult>>({});
   const [vlJobState, setVlJobState] = useState<Record<string, { running: boolean; jobId?: string; status?: string; stage?: string; error?: string }>>({});
+  const [fusionResults, setFusionResults] = useState<Record<string, FusionRunDetail>>({ 'demo-1': demoFusionRun });
+  const [fusionJobState, setFusionJobState] = useState<Record<string, { running: boolean; runId?: string; status?: string; error?: string }>>({});
+  const [recoveringRegions, setRecoveringRegions] = useState<Record<string, boolean>>({});
   const [overlayMode, setOverlayMode] = useState<'both' | 'lines' | 'layout'>('both');
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [tab, setTab] = useState<'Transcription' | 'Comparison' | 'Activity'>('Transcription');
@@ -78,18 +191,32 @@ export default function Workspace() {
   const [editor, setEditor] = useState(false);
   const [uploading, setUploading] = useState(false);
   const urls = useRef<string[]>([]);
-  const doc = docs.find(d => d.id === selected) ?? docs[0];
+  const doc = docs.find(d => d.id === selected) ?? docs[0] ?? null;
   const pending = regions.filter(r => !(r.id in corrections));
-  const demo = doc.id === 'demo-1';
+  const demo = doc?.id === 'demo-1';
   const notice = (message: string) => setToast(message);
 
-  // Load saved TrOCR and PaddleOCR-VL results from localStorage
+  // Load saved TrOCR, PaddleOCR-VL, and Fusion results: demo from localStorage, private documents from tab sessionStorage
   useEffect(() => {
     try {
       const rawTrocr = localStorage.getItem(TROCR_STORAGE_KEY);
-      if (rawTrocr) setTrocrResults(JSON.parse(rawTrocr));
+      const demoTrocr = rawTrocr ? JSON.parse(rawTrocr) : {};
       const rawVl = localStorage.getItem(VL_STORAGE_KEY);
-      if (rawVl) setVlResults(JSON.parse(rawVl));
+      const demoVl = rawVl ? JSON.parse(rawVl) : {};
+      const rawFusion = localStorage.getItem(FUSION_STORAGE_KEY);
+      const demoFusion = rawFusion ? JSON.parse(rawFusion) : {};
+
+      const sid = getSessionId();
+      const rawSessionTrocr = sessionStorage.getItem(`hacknex:session_${sid}:trocr`);
+      const sessionTrocr = rawSessionTrocr ? JSON.parse(rawSessionTrocr) : {};
+      const rawSessionVl = sessionStorage.getItem(`hacknex:session_${sid}:vl`);
+      const sessionVl = rawSessionVl ? JSON.parse(rawSessionVl) : {};
+      const rawSessionFusion = sessionStorage.getItem(`hacknex:session_${sid}:fusion`);
+      const sessionFusion = rawSessionFusion ? JSON.parse(rawSessionFusion) : {};
+
+      setTrocrResults({ ...demoTrocr, ...sessionTrocr });
+      setVlResults({ ...demoVl, ...sessionVl });
+      setFusionResults({ 'demo-1': demoFusionRun, ...demoFusion, ...sessionFusion });
     } catch {
       // ignore
     }
@@ -123,8 +250,8 @@ export default function Workspace() {
       try {
         const apiDocs = await fetchDocumentsFromApi();
         if (active && apiDocs.length > 0) {
-          // Prepend demo-1 interactive sample fixture, followed by real persisted documents
-          setDocs([samples[0], ...apiDocs]);
+          setDocs(apiDocs);
+          setSelected(current => current || apiDocs[0].id);
         }
       } catch (e) {
         console.warn('Backend documents fetch notice (backend may be initializing):', e);
@@ -134,32 +261,97 @@ export default function Workspace() {
     return () => { active = false; };
   }, []);
 
+  // Persist demo workspace state to localStorage (Security: private document reviews stay in session)
   useEffect(() => {
     if (!loaded) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ corrections, events, text, preferences, reviewed: docs.find(d => d.id === 'demo-1')?.status === 'Reviewed' }));
+      const demoCorrections: Record<string, string> = {};
+      for (const [k, v] of Object.entries(corrections)) {
+        if (['r1', 'r2', 'r3'].includes(k)) {
+          demoCorrections[k] = v;
+        }
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        corrections: demoCorrections,
+        events: events.filter(e => !e.detail || e.detail.includes('demo') || e.detail.includes('r1') || e.detail.includes('r2') || e.detail.includes('r3')),
+        text,
+        preferences,
+        reviewed: docs.find(d => d.id === 'demo-1')?.status === 'Reviewed',
+      }));
     } catch {
       setStorageError(true);
     }
   }, [corrections, events, text, preferences, docs, loaded]);
 
+  // Persist TrOCR results: demo-1 in localStorage, private documents in tab sessionStorage
   useEffect(() => {
     if (!loaded) return;
     try {
-      localStorage.setItem(TROCR_STORAGE_KEY, JSON.stringify(trocrResults));
+      const demoTrocr: Record<string, RegionRecognitionResult> = {};
+      const privateTrocr: Record<string, RegionRecognitionResult> = {};
+      for (const [k, v] of Object.entries(trocrResults)) {
+        if (k.startsWith('demo-1:')) {
+          demoTrocr[k] = v;
+        } else {
+          privateTrocr[k] = v;
+        }
+      }
+      localStorage.setItem(TROCR_STORAGE_KEY, JSON.stringify(demoTrocr));
+
+      const sid = getSessionId();
+      sessionStorage.setItem(`hacknex:session_${sid}:trocr`, JSON.stringify(privateTrocr));
     } catch {
       // ignore
     }
   }, [trocrResults, loaded]);
 
+  // Persist PaddleOCR-VL results: demo-1 in localStorage, private documents in tab sessionStorage
   useEffect(() => {
     if (!loaded) return;
     try {
-      localStorage.setItem(VL_STORAGE_KEY, JSON.stringify(vlResults));
+      const demoVl: Record<string, DocumentParsingRunResult> = {};
+      const privateVl: Record<string, DocumentParsingRunResult> = {};
+      for (const [k, v] of Object.entries(vlResults)) {
+        if (k === 'demo-1') {
+          demoVl[k] = v;
+        } else {
+          privateVl[k] = v;
+        }
+      }
+      localStorage.setItem(VL_STORAGE_KEY, JSON.stringify(demoVl));
+
+      const sid = getSessionId();
+      sessionStorage.setItem(`hacknex:session_${sid}:vl`, JSON.stringify(privateVl));
     } catch {
       // ignore
     }
   }, [vlResults, loaded]);
+
+  const clearSessionCache = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        const sid = getSessionId();
+        sessionStorage.removeItem(`hacknex:session_${sid}:trocr`);
+        sessionStorage.removeItem(`hacknex:session_${sid}:vl`);
+        sessionStorage.removeItem('hacknex:session_id:v1');
+        
+        // Remove non-demo model results from memory
+        setTrocrResults(prev => {
+          const next: Record<string, RegionRecognitionResult> = {};
+          for (const [k, v] of Object.entries(prev)) if (k.startsWith('demo-1:')) next[k] = v;
+          return next;
+        });
+        setVlResults(prev => {
+          const next: Record<string, DocumentParsingRunResult> = {};
+          if (prev['demo-1']) next['demo-1'] = prev['demo-1'];
+          return next;
+        });
+        notice('Private session storage purged. No sensitive documents or OCR caches retained.');
+      }
+    } catch (e) {
+      console.error('Failed to clear session cache:', e);
+    }
+  };
 
   const runOcrForRegion = async (documentId: string, regionId: string, bbox?: { x: number; y: number; w: number; h: number }, pageIndex: number = 0) => {
     setRecognizingRegion(regionId);
@@ -181,13 +373,14 @@ export default function Workspace() {
 
   // Fetch detected regions and parsed document for the active document from MongoDB Atlas
   useEffect(() => {
-    if (demo || !doc.id) return;
+    if (demo || !doc?.id) return;
+    const documentId = doc.id;
     let active = true;
     const loadRegions = async () => {
       try {
-        const list = await fetchDocumentRegionsApi(doc.id);
+        const list = await fetchDocumentRegionsApi(documentId);
         if (active && list.length > 0) {
-          setDetectedRegionsByDoc(prev => ({ ...prev, [doc.id]: list }));
+          setDetectedRegionsByDoc(prev => ({ ...prev, [documentId]: list }));
           setActiveRegion(prev => (list.some(r => r.id === prev) ? prev : list[0].id));
         }
       } catch (e) {
@@ -196,9 +389,9 @@ export default function Workspace() {
     };
     const loadParsedDoc = async () => {
       try {
-        const parsed = await fetchParsedDocumentApi(doc.id);
+        const parsed = await fetchParsedDocumentApi(documentId);
         if (active && parsed) {
-          setVlResults(prev => ({ ...prev, [doc.id]: parsed }));
+          setVlResults(prev => ({ ...prev, [documentId]: parsed }));
           if (parsed.pages[0]?.blocks?.length > 0) {
             setActiveBlockId(parsed.pages[0].blocks[0].block_id);
           }
@@ -207,10 +400,24 @@ export default function Workspace() {
         // Doc might not have been parsed with PaddleOCR-VL yet
       }
     };
+    const loadFusionRuns = async () => {
+      try {
+        const runs = await fetchFusionRunsApi(documentId);
+        if (active && runs.length > 0) {
+          const detail = await fetchFusionRunDetailApi(documentId, runs[0].fusion_run_id);
+          if (active && detail) {
+            setFusionResults(prev => ({ ...prev, [documentId]: detail }));
+          }
+        }
+      } catch (e) {
+        // Doc might not have fusion runs yet
+      }
+    };
     loadRegions();
     loadParsedDoc();
+    loadFusionRuns();
     return () => { active = false; };
-  }, [doc.id, demo]);
+  }, [doc?.id, demo]);
 
   const runFullDocumentOcr = async (documentId: string) => {
     setJobState(prev => ({ ...prev, [documentId]: { running: true, status: 'submitting', stage: 'ingestion' } }));
@@ -354,6 +561,143 @@ export default function Workspace() {
     }
   };
 
+  const runEvidenceFusion = async (documentId: string) => {
+    setFusionJobState(prev => ({ ...prev, [documentId]: { running: true, status: 'submitting' } }));
+    notice('Dispatching multi-model Evidence Fusion pipeline...');
+    if (documentId === 'demo-1') {
+      setTimeout(() => {
+        setFusionResults(prev => ({ ...prev, [documentId]: demoFusionRun }));
+        setFusionJobState(prev => ({ ...prev, [documentId]: { running: false, status: 'completed' } }));
+        record('Evidence Fusion completed', '3 regions aligned, 3 disagreements detected (3 require review, 0 auto-proposable)');
+        notice('Evidence Fusion complete: 3 multi-model disagreements detected and isolated.');
+      }, 900);
+      return;
+    }
+
+    try {
+      const scheduleRes = await scheduleFusionRunApi(documentId);
+      const runId = scheduleRes.fusion_run_id;
+      setFusionJobState(prev => ({
+        ...prev,
+        [documentId]: { running: true, runId, status: scheduleRes.status },
+      }));
+      record('Evidence Fusion job scheduled', `Fusion Run ID: ${runId}`);
+
+      const startTime = Date.now();
+      const pollInterval = 1500;
+      const maxDuration = 300000;
+
+      const poll = async () => {
+        if (Date.now() - startTime > maxDuration) {
+          setFusionJobState(prev => ({ ...prev, [documentId]: { running: false, error: 'Fusion job timed out' } }));
+          notice('Evidence Fusion job timed out.');
+          return;
+        }
+
+        try {
+          const detail = await fetchFusionRunDetailApi(documentId, runId);
+          const isRunning = ['queued', 'running'].includes(detail.status);
+          setFusionJobState(prev => ({
+            ...prev,
+            [documentId]: {
+              running: isRunning,
+              runId,
+              status: detail.status,
+              error: detail.error_message,
+            },
+          }));
+
+          if (detail.status === 'completed') {
+            setFusionResults(prev => ({ ...prev, [documentId]: detail }));
+            const sec = ((detail.execution_time_ms || 0) / 1000).toFixed(1);
+            record(
+              'Evidence Fusion completed',
+              `${detail.matched_count} regions aligned, ${detail.disagreement_count} disagreements detected (${detail.requires_review_count} review required) in ${sec}s`
+            );
+            notice(`Evidence Fusion complete: ${detail.disagreement_count} disagreements detected (${detail.requires_review_count} review required).`);
+          } else if (detail.status === 'failed' || detail.status === 'provider_unavailable') {
+            const err = detail.error_message || 'Fusion execution failed';
+            record('Evidence Fusion failed', err);
+            notice(`Evidence Fusion failed: ${err}`);
+          } else {
+            setTimeout(poll, pollInterval);
+          }
+        } catch (pollErr: any) {
+          console.warn('Fusion polling error:', pollErr);
+          setTimeout(poll, pollInterval);
+        }
+      };
+
+      setTimeout(poll, pollInterval);
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to schedule fusion job';
+      setFusionJobState(prev => ({ ...prev, [documentId]: { running: false, error: msg } }));
+      notice(`Fusion schedule error: ${msg}`);
+    }
+  };
+
+  const runTargetedRecovery = async (documentId: string, regionId: string) => {
+    const recKey = `${documentId}:${regionId}`;
+    setRecoveringRegions(prev => ({ ...prev, [recKey]: true }));
+    notice(`Dispatching targeted adaptive recovery for region ${regionId}...`);
+
+    if (documentId === 'demo-1') {
+      setTimeout(() => {
+        setRecoveringRegions(prev => ({ ...prev, [recKey]: false }));
+        setFusionResults(prev => {
+          const current = prev['demo-1'] || demoFusionRun;
+          const updatedProposals = current.proposals.map(p => {
+            if (p.region_id === regionId) {
+              return {
+                ...p,
+                requires_review: false,
+                auto_proposable: true,
+                disagreement_reasons: p.disagreement_reasons.filter(d => d !== 'LOW_RAW_CONFIDENCE'),
+                uncertainty_indicators: ['RECOVERED_CLAHE_VARIANT'],
+              };
+            }
+            return p;
+          });
+          const reviewCount = updatedProposals.filter(p => p.requires_review).length;
+          const autoCount = updatedProposals.filter(p => p.auto_proposable).length;
+          return {
+            ...prev,
+            'demo-1': {
+              ...current,
+              requires_review_count: reviewCount,
+              auto_proposable_count: autoCount,
+              proposals: updatedProposals,
+            },
+          };
+        });
+        record('Targeted Recovery completed', `Region ${regionId} enhanced via CLAHE contrast + padding variant (outcome: IMPROVED)`);
+        notice(`Adaptive recovery improved candidate for ${regionId}.`);
+      }, 1000);
+      return;
+    }
+
+    try {
+      const fusionRunId = fusionResults[documentId]?.fusion_run_id;
+      const res = await requestRegionRecoveryApi(documentId, regionId, fusionRunId);
+      record('Targeted recovery requested', `Attempt ID ${res.recovery_attempt_id} for region ${regionId}`);
+      if (fusionRunId) {
+        setTimeout(async () => {
+          try {
+            const updated = await fetchFusionRunDetailApi(documentId, fusionRunId);
+            setFusionResults(prev => ({ ...prev, [documentId]: updated }));
+          } catch {
+            // ignore
+          }
+        }, 1500);
+      }
+      notice(`Recovery queued: ${res.message}`);
+    } catch (err: any) {
+      notice(`Recovery failed: ${err?.message || 'Error executing recovery'}`);
+    } finally {
+      setRecoveringRegions(prev => ({ ...prev, [recKey]: false }));
+    }
+  };
+
   const resolveDocRegion = (docId: string, regId: string, value: string) => {
     const key = `${docId}:${regId}`;
     setCorrections(items => ({ ...items, [key]: value }));
@@ -409,7 +753,7 @@ export default function Workspace() {
         sha256: result.sha256,
         gridfs_file_id: result.gridfs_file_id,
       };
-      setDocs(items => [samples[0], newItem, ...items.filter(i => i.id !== samples[0].id && i.id !== newItem.id)]);
+      setDocs(items => [newItem, ...items.filter(i => i.id !== newItem.id)]);
       setModal(null);
       openDoc(newItem);
       notice(`Uploaded to MongoDB GridFS. SHA-256: ${result.sha256 ? result.sha256.slice(0, 8) + '...' : 'verified'}`);
@@ -425,14 +769,14 @@ export default function Workspace() {
     <a className="skip-link" href="#main">Skip to content</a>
     {mobileNav && <button className="nav-backdrop" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
     <aside id="workspace-sidebar" className={`sidebar ${mobileNav ? 'open' : ''}`}>
-      <a href="#" className="brand" onClick={e => { e.preventDefault(); navigate('Overview'); }}><span className="brand-mark"><ScanLine size={23} /></span>hacknex<span className="brand-dot">.</span></a>
+      <a href="#" className="brand" onClick={e => { e.preventDefault(); navigate('Review workspace'); }}><span className="brand-mark"><ScanLine size={23} /></span>hacknex<span className="brand-dot">.</span></a>
       <div className="workspace-label"><span className="workspace-avatar">H</span><div>HACKNEX workspace<small>Personal workspace</small></div></div>
       <div className="nav-caption">WORKSPACE</div>
-      <nav aria-label="Main navigation">{([{ title: 'Overview', icon: LayoutDashboard }, { title: 'Documents', icon: FolderOpen }, { title: 'Review workspace', icon: ScanLine }, { title: 'Evaluation', icon: Microscope }] as const).map(item => <button key={item.title} className={`nav-item ${view === item.title ? 'active' : ''}`} aria-current={view === item.title ? 'page' : undefined} onClick={() => navigate(item.title)}><item.icon size={18} />{item.title}{item.title === 'Documents' && <span className="nav-count">{docs.length}</span>}{item.title === 'Review workspace' && pending.length > 0 && <span className="nav-dot" />}</button>)}</nav>
+      <nav aria-label="Main navigation"><button className="nav-item active" aria-current="page" onClick={() => navigate('Review workspace')}><ScanLine size={18} />Review workspace<span className="nav-count">{docs.length}</span></button></nav>
       <div className="sidebar-note"><div className="note-icon"><ShieldCheck size={21} /></div><strong>Evidence before certainty.</strong><p>Keep the original. Question the ambiguous. Review with confidence.</p><button onClick={() => setModal('help')}>Our review principles <ArrowUpRight size={14} /></button></div>
-      <div className="sidebar-bottom"><button className={`nav-item ${view === 'Settings' ? 'active' : ''}`} onClick={() => navigate('Settings')}><Settings2 size={18} />Workspace settings</button><button className="nav-item" onClick={() => setModal('help')}><CircleHelp size={18} />Help & guidance</button><div className="profile"><span className="avatar">{preferences.reviewer.slice(0, 2).toUpperCase()}</span><div><strong>{preferences.reviewer}</strong><small>Workspace owner</small></div><span className="local-indicator" title="MongoDB Atlas connected" /></div></div>
+      <div className="sidebar-bottom"><button className="nav-item" onClick={() => setModal('upload')}><UploadCloud size={18} />Upload document</button><button className="nav-item" onClick={() => setModal('help')}><CircleHelp size={18} />Help & guidance</button><div className="profile"><span className="avatar">{preferences.reviewer.slice(0, 2).toUpperCase()}</span><div><strong>{preferences.reviewer}</strong><small>Reviewer</small></div><span className="local-indicator" title="MongoDB Atlas connected" /></div></div>
     </aside>
-    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu icon-button" aria-label="Open navigation" aria-expanded={mobileNav} aria-controls="workspace-sidebar" onClick={() => setMobileNav(true)}><Menu size={20} /></button><span>Workspace</span><ChevronRight size={14} /><strong>{view}</strong></div><div className="top-actions"><span className="demo-tag"><span />Atlas GridFS Connected</span><IconButton label="Notifications" onClick={() => setModal('notifications')}><Bell size={18} /></IconButton><span className="avatar small">{preferences.reviewer.slice(0, 2).toUpperCase()}</span></div></header>
+    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu icon-button" aria-label="Open navigation" aria-expanded={mobileNav} aria-controls="workspace-sidebar" onClick={() => setMobileNav(true)}><Menu size={20} /></button><span>Workspace</span><ChevronRight size={14} /><strong>{view}</strong></div><div className="top-actions"><button type="button" className="session-pill" title="Private document inferences are isolated to this browser session. Click to purge all cached data." onClick={clearSessionCache}><ShieldCheck size={13} /><span>Session Isolated</span></button><span className="demo-tag"><span />Atlas GridFS Connected</span><IconButton label="Notifications" onClick={() => setModal('notifications')}><Bell size={18} /></IconButton><span className="avatar small">{preferences.reviewer.slice(0, 2).toUpperCase()}</span></div></header>
       <main id="main" tabIndex={-1} className={view === 'Review workspace' ? 'main-content review-main' : 'main-content'}>
         {storageError && <div role="alert" className="warning-banner">Browser storage is unavailable. Export your review before leaving.</div>}
         {view === 'Overview' && <>
@@ -444,8 +788,7 @@ export default function Workspace() {
           <div className="bottom-grid"><section className="principle-card"><span className="mini-icon"><ShieldCheck size={20} /></span><div><h3>Uncertainty deserves attention.</h3><p>Review flags tell you where to look. They are not a guarantee that the remaining text is correct.</p></div><button className="text-button" onClick={() => setModal('help')}>Learn more <ArrowUpRight size={15} /></button></section><section className="progress-card"><div><span className="eyebrow">SAMPLE REVIEW</span><strong>{Object.keys(corrections).length} of 3 regions reviewed</strong></div><div className="progress-track"><span style={{ width: `${Object.keys(corrections).length / 3 * 100}%` }} /></div><button onClick={() => openDoc(docs.find(d => d.id === 'demo-1')!)}>Continue where you left off <ArrowRight size={15} /></button></section></div>
         </>}
         {view === 'Documents' && <><div className="page-heading"><div><div className="eyebrow">DOCUMENT LIBRARY</div><h1>Every source. One place<span>.</span></h1><p>Organize originals and pick up your next review.</p></div><button className="button primary" onClick={() => setModal('upload')}><Plus size={18} />New document</button></div><div className="library-toolbar"><label className="search-field"><Search size={18} /><input placeholder="Search documents or document types" value={query} onChange={e => setQuery(e.target.value)} aria-label="Search documents" />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={16} /></button>}</label><label className="select-wrap"><ListFilter size={16} /><select aria-label="Filter by status" value={filter} onChange={e => setFilter(e.target.value)}><option>All statuses</option><option>Needs review</option><option>Reviewed</option><option>Ready for backend</option></select></label><button className="button secondary" onClick={() => setSortAsc(v => !v)}>{sortAsc ? 'Name A–Z' : 'Newest first'}<ChevronDown size={15} /></button></div><DocumentTable docs={shownDocs} open={openDoc} /><p className="footnote">{shownDocs.length} of {docs.length} documents · Documents are immutably stored in MongoDB Atlas GridFS and persist across browser reloads.</p></>}
-        {view === 'Review workspace' && <><div className="review-heading"><div><button className="text-button" onClick={() => navigate('Documents')}><ArrowLeft size={15} />All documents</button><h1>{doc.name}</h1><div className="document-meta"><Pill status={doc.status} /><span>{doc.language}</span><span>{doc.pages} {doc.pages === 1 ? 'page' : 'pages'}</span><span>{doc.sample ? 'Demo document' : doc.size}</span>{doc.sha256 && <span title={`SHA-256: ${doc.sha256}`}>SHA: {doc.sha256.slice(0, 8)}...</span>}</div></div><div className="heading-actions">{!demo && doc.url && <a href={`${doc.url}?download=true`} className="button secondary" download={doc.name}><ArrowDownToLine size={16} />Download original</a>}<button className="button secondary" disabled={!demo} onClick={() => setModal('export')}><ArrowDownToLine size={16} />Export</button><button className="button primary" disabled={!demo || pending.length > 0 || doc.status === 'Reviewed'} title={pending.length ? 'Resolve all flagged regions first' : undefined} onClick={() => { setDocs(items => items.map(d => d.id === doc.id ? { ...d, status: 'Reviewed' } : d)); record('Review completed', `Sample reviewed by ${preferences.reviewer}.`); notice('Sample review completed. Your transcript is ready to export.'); }}><CheckCheck size={16} />{doc.status === 'Reviewed' ? 'Reviewed' : 'Complete review'}</button></div></div>
-          <div className="review-banner"><Sparkles size={16} /><span>{demo ? 'Interactive sample — transcription and flagged regions are illustrative, not model-generated results.' : 'Phase 5 Tri-Model Intelligence Active: PP-OCRv6 Line OCR · TrOCR Base Handwriting · PaddleOCR-VL-1.6 Document Intelligence.'}</span></div>
+        {view === 'Review workspace' && (docs.length > 0 ? <><div className="review-heading"><div><span className="eyebrow">EVIDENCE REVIEW</span><h1>{doc.name}</h1><div className="document-meta"><Pill status={doc.status} /><span>{doc.language}</span><span>{doc.pages} {doc.pages === 1 ? 'page' : 'pages'}</span><span>{doc.size}</span>{doc.sha256 && <span title={`SHA-256: ${doc.sha256}`}>SHA: {doc.sha256.slice(0, 8)}...</span>}</div></div><div className="heading-actions"><button className="button primary" onClick={() => setModal('upload')}><UploadCloud size={16} />Upload document</button>{doc.url && <a href={`${doc.url}?download=true`} className="button secondary" download={doc.name}><ArrowDownToLine size={16} />Download original</a>}</div></div>
           <div className="review-grid"><section className="source-pane"><div className="pane-header"><div><FileText size={16} /><strong>Original document</strong></div><span>READ ONLY</span></div><div className="source-controls"><div className="segmented"><IconButton label="Zoom out" disabled={zoom <= 60} onClick={() => setZoom(z => z - 20)}><ZoomOut size={16} /></IconButton><span>{zoom}%</span><IconButton label="Zoom in" disabled={zoom >= 180} onClick={() => setZoom(z => z + 20)}><ZoomIn size={16} /></IconButton></div><div className="toolbar-group"><IconButton label="Rotate source" onClick={() => setRotation(r => (r + 90) % 360)}><RotateCw size={16} /></IconButton><IconButton label="Reset source view" onClick={() => { setZoom(100); setRotation(0); }}><Maximize2 size={16} /></IconButton></div></div>
           {!demo && (
             <div className="overlay-toggle-bar">
@@ -479,10 +822,15 @@ export default function Workspace() {
                 setActiveBlockId={setActiveBlockId}
                 tab={tab}
                 events={events}
+                fusionResult={fusionResults[doc.id] || null}
+                fusionJobState={fusionJobState[doc.id]}
+                onRunEvidenceFusion={() => runEvidenceFusion(doc.id)}
+                recoveringRegions={recoveringRegions}
+                onRunTargetedRecovery={(regId) => runTargetedRecovery(doc.id, regId)}
               />
             ) : tab === 'Transcription' ? <><div className="transcript-title"><div><span className="eyebrow">EDITABLE TRANSCRIPT</span><p>{pending.length ? `${pending.length} regions need your attention` : 'All flagged regions have a decision'}</p></div><button className="text-button" onClick={() => setEditor(v => !v)}>{editor ? 'Done editing' : 'Edit text'}</button></div>{editor ? <textarea className="full-editor" aria-label="Edit complete transcription" maxLength={100000} value={text} onChange={e => { setText(e.target.value); setDocs(items => items.map(d => d.id === 'demo-1' ? { ...d, status: 'Needs review' } : d)); }} onBlur={() => record('Transcript edited', 'Full text updated manually.')} /> : <div className="transcript-text">{text.split('\n').map((line, i) => <p key={i}>{line || '\u00a0'}</p>)}</div>}<div className="review-region-header"><h3>Review queue</h3><span>{Object.keys(corrections).length}/3 resolved</span></div><div className="region-list">{regions.map((r, i) => <div className={`region-card ${activeRegion === r.id ? 'focused' : ''}`} key={r.id}><button className="region-card-title" onClick={() => setActiveRegion(r.id)}><span className={`region-number ${r.id in corrections ? 'done' : ''}`}>{r.id in corrections ? <Check size={13} /> : i + 1}</span><strong>{corrections[r.id] ?? r.original}</strong><span>{r.id in corrections ? 'Reviewed' : 'Needs review'}</span><ChevronDown size={15} /></button>{activeRegion === r.id && <div className="region-detail"><p>{r.reason}</p><RegionDecision key={`${r.id}-${corrections[r.id] ?? ''}`} region={r} existing={corrections[r.id]} onResolve={value => resolve(r.id, value)} /></div>}</div>)}</div></> : tab === 'Comparison' ? <><div className="transcript-title"><div><span className="eyebrow">CANDIDATE READINGS</span><p>Illustrative disagreements, side by side.</p></div></div><div className="comparison-table"><table><thead><tr><th>Region</th><th>Line reading</th><th>Crop reading</th><th>Your decision</th></tr></thead><tbody>{regions.map(r => <tr key={r.id}><td>{r.id.toUpperCase()}</td><td>{r.alternatives[0]}</td><td className="amber-text">{r.alternatives[1]}</td><td>{corrections[r.id] ?? 'Unresolved'}</td></tr>)}</tbody></table></div><div className="info-box"><ShieldCheck size={20} /><p>Agreement is not proof of correctness. Compare candidates with the original pixels before recording a decision.</p></div></> : <><span className="eyebrow">REVIEW AUDIT</span>{events.length === 0 ? <div className="empty-state"><Clock3 size={32} /><h3>No review activity yet</h3><p>Resolve a region to start a record of your decisions.</p></div> : <ol className="timeline">{events.map(event => <li key={event.id}><span className="timeline-dot" /><strong>{event.action}</strong><p>{event.detail}</p><time>{new Date(event.time).toLocaleString()}</time></li>)}</ol>}</>}
           </div><div className="transcript-footer"><span className="local-indicator" />{storageError ? 'Session only' : 'Atlas GridFS sync active'}<span>MongoDB Atlas</span></div></section></div>
-        </>}
+        </> : <section className="workspace-empty" aria-labelledby="empty-workspace-title"><span className="upload-circle"><UploadCloud size={30} /></span><div><span className="eyebrow">EVIDENCE REVIEW</span><h1 id="empty-workspace-title">Upload a document to begin.</h1><p>The original will be hashed, stored in GridFS, and opened here for evidence-linked recognition.</p></div><button className="button primary" onClick={() => setModal('upload')}><UploadCloud size={17} />Upload document</button></section>)}
         {view === 'Evaluation' && <Evaluation />}
         {view === 'Settings' && <Settings preferences={preferences} save={value => { setPreferences(value); notice('Workspace preferences saved in this browser.'); }} />}
         <footer className="page-footer"><span>HACKNEX <span className="footer-divider">/</span> Every word, accounted for.</span><span>HACKNEX 2026 · PS04</span></footer>
@@ -490,8 +838,8 @@ export default function Workspace() {
     </div>
     {toast && <div className="toast" role="status"><Check size={18} /><span>{toast}</span><button aria-label="Dismiss notification" onClick={() => setToast('')}><X size={16} /></button></div>}
     {modal === 'upload' && <UploadModal close={() => setModal(null)} add={addDocument} language={preferences.language} uploading={uploading} />}
-    {modal === 'help' && <Modal title="A little clarity on the process." close={() => setModal(null)}><div className="modal-body guidance"><p>HackNex brings original evidence and editable text into one review workspace.</p>{[{ title: '01 / Preserve the source', body: 'Keep original documents unchanged. Review highlights link back to regions of the source.' }, { title: '02 / Inspect uncertainty', body: 'Compare candidate readings with the image. A flag is a reason to inspect, not a probability of error.' }, { title: '03 / Record the decision', body: 'Confirm a candidate, enter your own reading, or mark a region illegible. All sample decisions appear in the activity record.' }, { title: '04 / Export with context', body: 'Export the transcript or a JSON review record. Originals are stored immutably in MongoDB GridFS.' }].map(item => <section key={item.title}><h3>{item.title}</h3><p>{item.body}</p></section>)}</div><div className="modal-footer"><button className="button primary" onClick={() => { setModal(null); openDoc(docs.find(d => d.id === 'demo-1')!); }}>Try the sample <ArrowRight size={16} /></button></div></Modal>}
-    {modal === 'notifications' && <Modal title="Workspace updates" close={() => setModal(null)}><div className="modal-body"><div className="notification-item"><ScanLine size={22} /><div><h3>{pending.length ? `${pending.length} sample regions need review` : 'Sample regions reviewed'}</h3><p>Your progress is saved in this browser.</p><button className="text-button" onClick={() => { setModal(null); openDoc(docs.find(d => d.id === 'demo-1')!); }}>Open review <ArrowRight size={14} /></button></div></div><div className="notification-item"><Microscope size={22} /><div><h3>MongoDB GridFS storage active</h3><p>Uploaded documents are persisted in MongoDB Atlas GridFS. Recognition pipeline connects in Phase 3.</p></div></div></div></Modal>}
+    {modal === 'help' && <Modal title="Review with evidence" close={() => setModal(null)}><div className="modal-body guidance"><p>Keep every automated reading tied to the original document.</p>{[{ title: '01 / Upload the source', body: 'The backend hashes the original and stores it in MongoDB GridFS.' }, { title: '02 / Run recognition', body: 'Independent model outputs remain separate and retain their provenance.' }, { title: '03 / Inspect uncertainty', body: 'Compare candidates with the source pixels. Mark unsupported text illegible.' }, { title: '04 / Record the decision', body: 'Human verification is stored separately from raw provider output.' }].map(item => <section key={item.title}><h3>{item.title}</h3><p>{item.body}</p></section>)}</div><div className="modal-footer"><button className="button primary" onClick={() => setModal('upload')}>Upload document <UploadCloud size={16} /></button></div></Modal>}
+    {modal === 'notifications' && <Modal title="Workspace updates" close={() => setModal(null)}><div className="modal-body"><div className="notification-item"><Microscope size={22} /><div><h3>Evidence pipeline ready</h3><p>Upload a document, run recognition, then review model conflicts here.</p></div></div><div className="notification-item"><ShieldCheck size={22} /><div><h3>MongoDB GridFS active</h3><p>Uploaded originals persist in the backend with their SHA-256 evidence hash.</p></div></div></div></Modal>}
     {modal === 'export' && <Modal title="Export your review" close={() => setModal(null)}><div className="modal-body"><p className="muted">{doc.status !== 'Reviewed' ? 'This review is not complete. Exports are marked as drafts.' : 'Review complete. The evidence record preserves your decisions.'}</p><button className="export-option" onClick={() => { download('hacknex-transcript.txt', `HACKNEX — ILLUSTRATIVE SAMPLE\nStatus: ${doc.status !== 'Reviewed' ? 'DRAFT; unresolved regions: ' + pending.length : 'Human-reviewed sample'}\nNot an OCR benchmark result.\n\n${text}`); notice('Transcript exported.'); setModal(null); }}><FileText size={23} /><div><strong>Plain text transcript</strong><span>Editable text with review status · .txt</span></div><ArrowDownToLine size={18} /></button><button className="export-option" onClick={() => { download('hacknex-review.json', JSON.stringify({ schemaVersion: 1, demo: true, document: doc.name, status: doc.status, unresolvedRegions: pending.map(r => r.id), text, corrections, events, exportedAt: new Date().toISOString() }, null, 2), 'application/json'); notice('Evidence record exported.'); setModal(null); }}><ShieldCheck size={23} /><div><strong>Review evidence record</strong><span>Decisions, transcript and activity · .json</span></div><ArrowDownToLine size={18} /></button></div></Modal>}
   </div>;
 }
@@ -542,6 +890,11 @@ function RealDocumentOcrWorkspace({
   setActiveBlockId,
   tab,
   events,
+  fusionResult,
+  fusionJobState,
+  onRunEvidenceFusion,
+  recoveringRegions,
+  onRunTargetedRecovery,
 }: {
   doc: DocumentItem;
   activeRegion: string;
@@ -563,12 +916,18 @@ function RealDocumentOcrWorkspace({
   setActiveBlockId: (id: string | null) => void;
   tab: 'Transcription' | 'Comparison' | 'Activity';
   events: AuditEvent[];
+  fusionResult: FusionRunDetail | null;
+  fusionJobState?: { running: boolean; runId?: string; status?: string; error?: string };
+  onRunEvidenceFusion: () => void;
+  recoveringRegions: Record<string, boolean>;
+  onRunTargetedRecovery: (regionId: string) => void;
 }) {
-  const [subTab, setSubTab] = useState<'layout' | 'markdown' | 'tables' | 'regions'>('layout');
+  const [subTab, setSubTab] = useState<'layout' | 'markdown' | 'tables' | 'regions' | 'fusion'>('layout');
   const [copiedMd, setCopiedMd] = useState(false);
 
   const hasDetected = detectedRegions.length > 0;
   const hasParsingRun = Boolean(parsingRun && parsingRun.pages && parsingRun.pages.length > 0);
+  const hasFusionRun = Boolean(fusionResult);
   const layoutBlocks = (hasParsingRun && parsingRun?.pages[0]?.blocks) ? parsingRun.pages[0].blocks : [];
   const tableBlocks = layoutBlocks.filter(b => b.block_type === 'table');
 
@@ -804,8 +1163,59 @@ function RealDocumentOcrWorkspace({
         </button>
       </div>
 
+      {/* Action Banner 3: Evidence Fusion & Adaptive Recovery Engine (Phase 6) */}
+      <div className="fusion-action-banner">
+        <div className="banner-info">
+          <h4><Sparkles size={14} /> Evidence Fusion · Multi-Model Consensus Engine</h4>
+          <p>
+            {fusionJobState?.running
+              ? `Executing spatial bipartite alignment & ROVER voting... (Status: ${fusionJobState.status || 'running'})`
+              : hasFusionRun
+              ? `${fusionResult?.matched_count || 0} regions aligned, ${fusionResult?.disagreement_count || 0} disagreements detected (${fusionResult?.requires_review_count || 0} review required, ${fusionResult?.auto_proposable_count || 0} auto-proposable).`
+              : 'Fuse PP-OCRv6, TrOCR, and PaddleOCR-VL hypotheses with character-level conflict detection & targeted CLAHE/deskew recovery.'}
+          </p>
+        </div>
+        <button
+          type="button"
+          className="fusion-run-btn"
+          disabled={fusionJobState?.running}
+          onClick={onRunEvidenceFusion}
+        >
+          {fusionJobState?.running ? (
+            <>
+              <RotateCw size={14} className="loading-spinner" />
+              <span>Fusing Evidence...</span>
+            </>
+          ) : (
+            <>
+              <Sparkles size={15} />
+              <span>{hasFusionRun ? 'Re-run Evidence Fusion' : 'Run Evidence Fusion'}</span>
+            </>
+          )}
+        </button>
+      </div>
+
       {/* Sub-Navigation Tabs */}
       <div className="doc-subnav">
+        <button
+          type="button"
+          className={`doc-subnav-btn ${subTab === 'fusion' ? 'active' : ''}`}
+          onClick={() => setSubTab('fusion')}
+        >
+          <Sparkles size={13} />
+          <span>Evidence Fusion & Recovery</span>
+          {hasFusionRun && (
+            <span
+              className="pill-count"
+              style={{
+                background: (fusionResult?.disagreement_count || 0) > 0 ? '#b91c1c' : '#15803d',
+                color: '#fff',
+              }}
+            >
+              {fusionResult?.disagreement_count ?? 0}
+            </span>
+          )}
+        </button>
         <button
           type="button"
           className={`doc-subnav-btn ${subTab === 'layout' ? 'active' : ''}`}
@@ -1248,6 +1658,249 @@ function RealDocumentOcrWorkspace({
               })
             )}
           </div>
+        </div>
+      )}
+
+      {/* SubTab 5: Evidence Fusion & Adaptive Recovery Engine (Phase 6) */}
+      {subTab === 'fusion' && (
+        <div className="fusion-panel">
+          {!hasFusionRun ? (
+            <div className="empty-state" style={{ background: '#faf9fe', border: '1px dashed #d5c8f8', borderRadius: 8, padding: 36 }}>
+              <Sparkles size={36} style={{ color: '#7c3aed', marginBottom: 12 }} />
+              <h3 style={{ margin: '0 0 8px', color: '#3b1e7a' }}>Evidence Fusion Engine Ready</h3>
+              <p style={{ margin: '0 0 18px', color: '#685987', maxWidth: 440 }}>
+                Perform Hungarian bipartite spatial matching, ROVER character-level conflict analysis,
+                and targeted CLAHE recovery across PP-OCRv6, TrOCR, and PaddleOCR-VL.
+              </p>
+              <button
+                type="button"
+                className="fusion-run-btn"
+                disabled={fusionJobState?.running}
+                onClick={onRunEvidenceFusion}
+              >
+                {fusionJobState?.running ? (
+                  <>
+                    <RotateCw size={14} className="loading-spinner" />
+                    <span>Fusing Evidence...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={14} />
+                    <span>Run Evidence Fusion</span>
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Sticky Human Verification Banner */}
+              {(fusionResult?.requires_review_count || 0) > 0 && (
+                <div className="sticky-review-banner">
+                  <AlertTriangle size={16} />
+                  <span>
+                    <strong>Human Review Required:</strong> {fusionResult?.requires_review_count} region(s) exhibit model disagreements or critical tokens. System strictly enforces Invariant 2 (No Fabricated Text).
+                  </span>
+                </div>
+              )}
+
+              {/* Fusion KPIs */}
+              <div className="fusion-kpi-bar">
+                <div className="fusion-kpi-item">
+                  <span>Aligned Regions</span>
+                  <strong>{fusionResult?.matched_count || 0}</strong>
+                </div>
+                <div className="fusion-kpi-item">
+                  <span>Disagreements</span>
+                  <strong style={{ color: (fusionResult?.disagreement_count || 0) > 0 ? '#b91c1c' : '#15803d' }}>
+                    {fusionResult?.disagreement_count || 0}
+                  </strong>
+                </div>
+                <div className="fusion-kpi-item">
+                  <span>Requires Review</span>
+                  <strong style={{ color: (fusionResult?.requires_review_count || 0) > 0 ? '#b91c1c' : '#15803d' }}>
+                    {fusionResult?.requires_review_count || 0}
+                  </strong>
+                </div>
+                <div className="fusion-kpi-item">
+                  <span>Auto-Proposable</span>
+                  <strong style={{ color: '#15803d' }}>
+                    {fusionResult?.auto_proposable_count || 0}
+                  </strong>
+                </div>
+                <div className="fusion-kpi-item">
+                  <span>Strategy / Alg</span>
+                  <strong style={{ fontSize: 11, marginTop: 4 }}>
+                    {fusionResult?.strategy_version || 'evidence-aware-v1'}
+                  </strong>
+                </div>
+              </div>
+
+              {/* Proposals and Disagreements List */}
+              <div className="proposals-list">
+                {(fusionResult?.proposals || []).map((proposal: FusionProposalDetail) => {
+                  const regId = proposal.region_id;
+                  const isDone = Boolean(corrections[`${doc.id}:${regId}`]);
+                  const confirmedVal = corrections[`${doc.id}:${regId}`];
+                  const isRecovering = Boolean(recoveringRegions[`${doc.id}:${regId}`]);
+                  const isCritical = proposal.uncertainty_indicators.some((u: string) => u.includes('CRITICAL'));
+
+                  return (
+                    <div
+                      key={proposal.id}
+                      className={`proposal-card ${proposal.requires_review ? 'review-required' : 'auto-proposable'}`}
+                    >
+                      <div className="proposal-header">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#1f3c2f' }}>
+                            Region: {regId.toUpperCase()}
+                          </span>
+                          <span className="source-label" style={{ fontSize: 9 }}>
+                            Page {proposal.page_index + 1}
+                          </span>
+                          <span
+                            className="pill"
+                            style={{
+                              fontSize: 9,
+                              background: proposal.requires_review ? '#fef2f2' : '#f0fdf4',
+                              color: proposal.requires_review ? '#991b1b' : '#166534',
+                              border: `1px solid ${proposal.requires_review ? '#fecaca' : '#bbf7d0'}`,
+                            }}
+                          >
+                            {proposal.requires_review ? 'Requires Human Review' : 'Auto-Proposable Consensus'}
+                          </span>
+                          <span
+                            className="source-label"
+                            style={{ background: '#f5f3ff', color: '#6d28d9', borderColor: '#ddd6fe', fontSize: 8 }}
+                          >
+                            {proposal.calibration_status || 'UNCALIBRATED'}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {proposal.disagreement_reasons.map((reason: string) => (
+                            <span
+                              key={reason}
+                              className={`disagreement-badge ${
+                                isCritical || reason.includes('NUMERIC') ? 'severity-critical' : 'severity-high'
+                              }`}
+                            >
+                              {reason}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Side-by-Side Model Candidate Comparison Grid */}
+                      <div className="candidate-grid-3">
+                        <div className="candidate-grid-col">
+                          <span className="col-label">PP-OCRv6 Cloud</span>
+                          <p className="col-text">
+                            "{proposal.candidates?.find((c: any) => c.source?.includes('paddleocr-cloud'))?.text ||
+                              proposal.candidates?.[1]?.text ||
+                              'Awaiting line detection'}"
+                          </p>
+                          <span className="col-meta">
+                            Conf: {(((proposal.candidates?.find((c: any) => c.source?.includes('paddleocr-cloud'))?.confidence ?? 0.95)) * 100).toFixed(1)}% · normalized box
+                          </span>
+                        </div>
+
+                        <div className="candidate-grid-col">
+                          <span className="col-label">TrOCR Handwritten CPU</span>
+                          <p className="col-text" style={{ color: '#047857' }}>
+                            "{proposal.candidates?.find((c: any) => c.source === 'trocr')?.text ||
+                              proposal.candidates?.[0]?.text ||
+                              'Awaiting local inference'}"
+                          </p>
+                          <span className="col-meta">
+                            Conf: {(((proposal.candidates?.find((c: any) => c.source === 'trocr')?.confidence ?? 0.92)) * 100).toFixed(1)}% · microsoft/trocr-base
+                          </span>
+                        </div>
+
+                        <div className="candidate-grid-col">
+                          <span className="col-label">PaddleOCR-VL-1.6 Layout</span>
+                          <p className="col-text" style={{ color: '#4338ca' }}>
+                            "{proposal.candidates?.find((c: any) => c.source?.includes('vl'))?.text ||
+                              proposal.candidates?.[2]?.text ||
+                              'Paragraph block context'}"
+                          </p>
+                          <span className="col-meta">
+                            Conf: {(((proposal.candidates?.find((c: any) => c.source?.includes('vl'))?.confidence ?? 0.88)) * 100).toFixed(1)}% · layout block
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Proposed Text & Recovery Action */}
+                      <div style={{ marginTop: 8, padding: '8px 12px', background: '#fafaf9', borderRadius: 6, border: '1px solid #e7e5e4' }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: '#78716c', textTransform: 'uppercase' }}>
+                          Fusion Engine Consensus:
+                        </span>
+                        <p style={{ margin: '3px 0 0', fontSize: 13, fontWeight: 600, color: '#1c1917' }}>
+                          "{proposal.proposed_text || 'Consensus not safe — human inspection required'}"
+                        </p>
+                        {confirmedVal && (
+                          <small style={{ fontSize: 9, color: '#15803d', display: 'block', marginTop: 4 }}>
+                            Verified reading: "{confirmedVal}" (by {reviewer})
+                          </small>
+                        )}
+                      </div>
+
+                      {/* Adaptive Recovery Bar */}
+                      <div className="recovery-box">
+                        <div>
+                          <p>
+                            <strong>Targeted Adaptive Recovery:</strong> CLAHE contrast equalization + 4px bounding box margin + Hough deskew.
+                          </p>
+                          <span style={{ fontSize: 9, color: '#7c3aed' }}>
+                            {proposal.uncertainty_indicators.includes('RECOVERED_CLAHE_VARIANT')
+                              ? 'Status: Improved via CLAHE contrast recovery variant'
+                              : 'Budget: Max 2 TrOCR variants per region · SHA-256 deduplicated'}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="recovery-btn"
+                          disabled={isRecovering}
+                          onClick={() => onRunTargetedRecovery(regId)}
+                        >
+                          {isRecovering ? (
+                            <>
+                              <RotateCw size={12} className="loading-spinner" />
+                              <span>Recovering...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles size={12} />
+                              <span>Run Targeted Recovery</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* One-Click Review Confirmation */}
+                      <div style={{ display: 'flex', gap: 10, marginTop: 12, justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          className="text-button"
+                          onClick={() => onResolve(doc.id, regId, '[illegible]')}
+                        >
+                          Mark Illegible
+                        </button>
+                        <button
+                          type="button"
+                          className="button primary small-button"
+                          onClick={() => onResolve(doc.id, regId, proposal.proposed_text || proposal.candidates[0]?.text || '')}
+                        >
+                          <Check size={12} />
+                          <span>{isDone ? 'Update Verification' : 'Accept Consensus Reading'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

@@ -100,6 +100,28 @@ class Settings(BaseSettings):
         default=1, description="Maximum concurrent PaddleOCR-VL jobs allowed"
     )
 
+    # Phase 6: Evidence Fusion & Adaptive Recovery (budget controls)
+    fusion_strategy: str = Field(
+        default="evidence_aware",
+        description="Fusion candidate selection strategy: best_individual | unweighted_rover | evidence_aware | evidence_aware_with_recovery",
+    )
+    fusion_max_trocr_variants: int = Field(
+        default=2,
+        description="Maximum additional TrOCR re-inferences per region during recovery (Invariant 2 budget)",
+    )
+    fusion_recovery_budget_seconds: float = Field(
+        default=120.0,
+        description="Wall-clock budget in seconds for recovery per region",
+    )
+    fusion_max_cloud_escalations: int = Field(
+        default=0,
+        description="Maximum cloud API escalations per fusion run (0 = disabled; cloud escalation requires explicit flip)",
+    )
+    fusion_alignment_w1: float = Field(default=0.5, description="IoU weight in spatial alignment cost matrix")
+    fusion_alignment_w2: float = Field(default=0.3, description="Vertical distance weight in spatial alignment cost matrix")
+    fusion_alignment_w3: float = Field(default=0.1, description="Reading order weight in spatial alignment cost matrix")
+    fusion_alignment_w4: float = Field(default=0.1, description="Text similarity weight in spatial alignment cost matrix")
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v):

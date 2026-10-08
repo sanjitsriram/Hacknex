@@ -183,3 +183,63 @@ async def test_quota_exceeded_handling(paddle_vl_provider):
         mock_client_cls.return_value.__aenter__.return_value = mock_client
         with pytest.raises(ServiceUnavailableError, match="quota exceeded"):
             await paddle_vl_provider.parse_document(b"doc-bytes")
+
+
+@pytest.mark.asyncio
+async def test_nullable_block_order_handling(paddle_vl_provider):
+    """Verify that blocks with block_order=None (e.g. tables, headers) parse cleanly with fallback order."""
+    submit_resp = MagicMock()
+    submit_resp.status_code = 200
+    submit_resp.json.return_value = {"code": 0, "data": {"jobId": "null_order_job_123"}}
+
+    poll_resp = MagicMock()
+    poll_resp.status_code = 200
+    poll_resp.json.return_value = {"code": 0, "data": {"state": "done", "resultUrl": {"jsonUrl": "https://fake/jsonl"}}}
+
+    jsonl_payload = {
+        "result": {
+            "layoutParsingResults": [
+                {
+                    "prunedResult": {
+                        "width": 800,
+                        "height": 1000,
+                        "parsing_res_list": [
+                            {
+                                "block_id": 0,
+                                "block_label": "header",
+                                "block_content": "Hospital Header",
+                                "block_order": None,
+                                "block_bbox": [10, 10, 790, 50],
+                            },
+                            {
+                                "block_id": 1,
+                                "block_label": "table",
+                                "block_content": "<table><tr><td>Med</td></tr></table>",
+                                "block_order": None,
+                                "block_bbox": [20, 60, 780, 500],
+                            },
+                        ],
+                    },
+                    "markdown": {"text": "# Hospital Header\n\n<table>...</table>"},
+                }
+            ]
+        }
+    }
+
+    jsonl_resp = MagicMock()
+    jsonl_resp.status_code = 200
+    jsonl_resp.text = json.dumps(jsonl_payload)
+
+    mock_client = AsyncMock()
+    mock_client.post.return_value = submit_resp
+    mock_client.get.side_effect = [poll_resp, jsonl_resp]
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client_cls.return_value.__aenter__.return_value = mock_client
+        result = await paddle_vl_provider.parse_document(b"fake-bytes", "image/jpeg")
+
+    assert len(result.pages[0].blocks) == 2
+    assert result.pages[0].blocks[0].reading_order == 1
+    assert result.pages[0].blocks[1].reading_order == 2
+    assert result.pages[0].blocks[1].block_type == "table"
+

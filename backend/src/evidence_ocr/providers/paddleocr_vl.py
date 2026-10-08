@@ -295,11 +295,16 @@ class PaddleOCRVLCloudProvider:
                     tables_count = 0
 
                     for item_idx, block_dict in enumerate(parsing_list):
-                        b_id_num = block_dict.get("block_id", item_idx)
-                        b_id_str = f"blk-p{page_idx}-{b_id_num:03d}"
+                        raw_id = block_dict.get("block_id")
+                        if raw_id is not None:
+                            b_id_str = f"blk-p{page_idx}-{raw_id}"
+                        else:
+                            b_id_str = f"blk-p{page_idx}-{item_idx:03d}"
+
                         b_label = block_dict.get("block_label", "text")
                         b_content = block_dict.get("block_content", "")
-                        b_order = block_dict.get("block_order", item_idx + 1)
+                        raw_order = block_dict.get("block_order")
+                        b_order = int(raw_order) if raw_order is not None else (item_idx + 1)
                         raw_bbox = block_dict.get("block_bbox", [0, 0, page_w, page_h])
                         polygon_pts = block_dict.get("block_polygon_points")
 

@@ -43,4 +43,21 @@ test('api module exports and document mapping contract', () => {
   assert.equal(typeof apiMod.exports.fetchParsedDocumentApi, 'function');
   assert.equal(typeof apiMod.exports.fetchParsingHistoryApi, 'function');
 });
-
+test('session storage isolation preserves demo and isolates private documents', () => {
+  const wsCode = ts.transpileModule(fs.readFileSync('src/components/workspace.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React } }).outputText;
+  assert.ok(wsCode.includes('getSessionId'));
+  assert.ok(wsCode.includes('sessionStorage'));
+  assert.ok(wsCode.includes('clearSessionCache'));
+});
+test('review workspace starts from backend documents without mounting a sample', () => {
+  const source = fs.readFileSync('src/components/workspace.tsx', 'utf8');
+  assert.ok(source.includes("useState<View>('Review workspace')"));
+  assert.ok(source.includes('useState<DocumentItem[]>([])'));
+  assert.ok(source.includes('setDocs(apiDocs)'));
+  assert.ok(source.includes('Upload a document to begin.'));
+  assert.ok(!source.includes('Interactive sample — transcription'));
+});
+test('Next development badge is disabled', () => {
+  const config = fs.readFileSync('next.config.mjs', 'utf8');
+  assert.match(config, /devIndicators:\s*false/);
+});

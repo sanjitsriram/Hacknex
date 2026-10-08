@@ -22,7 +22,7 @@ class DocumentRepository(BaseRepository):
             await self.collection.create_index([("status", 1)])
             await self.collection.create_index([("sha256", 1)])
         except Exception as exc:
-            logger.warning("Could not create indexes on documents collection: %s", exc)
+            print("Could not create indexes on documents collection: %s", exc)
 
     async def get_by_id(self, document_id: str) -> Optional[DocumentEntity]:
         """Fetch a document by its unique string identifier (id, document_id, or _id)."""
