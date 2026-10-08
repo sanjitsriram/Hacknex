@@ -1,0 +1,14 @@
+# Core Framework & Validation
+fastapi==0.139.0
+uvicorn[standard]==0.50.2
+pydantic==2.13.4
+pydantic-settings==2.14.2
+python-multipart==0.0.32
+
+# Database Driver (PyMongo Async & SRV support)
+pymongo==4.17.0
+dnspython==2.8.0
+
+# HTTP & Utilities
+httpx==0.28.1
+python-dotenv==1.0.1

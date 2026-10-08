@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=65.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evidence-ocr"
+version = "0.1.0"
+description = "Accuracy-first handwriting digitization platform backend foundation"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [
+    { name = "EvidenceOCR Team", email = "engineering@evidenceocr.internal" }
+]
+dependencies = [
+    "fastapi>=0.139.0",
+    "uvicorn[standard]>=0.50.2",
+    "pydantic>=2.13.0",
+    "pydantic-settings>=2.14.0",
+    "python-multipart>=0.0.32",
+    "pymongo>=4.17.0",
+    "dnspython>=2.8.0",
+    "httpx>=0.28.1",
+    "python-dotenv>=1.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.1.0",
+    "pytest-asyncio>=1.4.0",
+    "mongomock>=4.3.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+addopts = "-ra -q --import-mode=importlib"
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
