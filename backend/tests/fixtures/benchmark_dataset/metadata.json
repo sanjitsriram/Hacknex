@@ -1,0 +1,328 @@
+{
+  "dataset": "IAM-Handwriting-Line-Test",
+  "source": "Teklia/IAM-line (test split)",
+  "dataset_sha256": "0f7270051136d5d2708ef1d2a0d276c7809847f0aada0799a572ea8a4d118f2d",
+  "total_samples": 40,
+  "samples": [
+    {
+      "id": "iam-test-00",
+      "filename": "sample_00.png",
+      "ground_truth": "assuredness \" Bella Bella Marie \" ( Parlophone ) , a lively song that changes tempo mid-way .",
+      "sha256": "2b7c98bbd7c5d1a566b5fdee8b19dd5f2b83392f60e31ca29a49ca402d9b23da",
+      "byte_length": 36606,
+      "style_category": "punctuation_and_complex"
+    },
+    {
+      "id": "iam-test-01",
+      "filename": "sample_01.png",
+      "ground_truth": "I don't think he will storm the charts with this one , but it 's a good start .",
+      "sha256": "399153df34c8d880a52ade9920bdb512a0231af6d7a2bab7246c81a8ad555777",
+      "byte_length": 30079,
+      "style_category": "punctuation_and_complex"
+    },
+    {
+      "id": "iam-test-02",
+      "filename": "sample_02.png",
+      "ground_truth": "CHRIS CHARLES , 39 , who lives in Stockton-on-Tees , is an accountant .",
+      "sha256": "cb89900e557fcc6352c4af8cda521e9416ba5cab6a0df944e005708c8a51a484",
+      "byte_length": 40811,
+      "style_category": "numbers_and_punctuation"
+    },
+    {
+      "id": "iam-test-03",
+      "filename": "sample_03.png",
+      "ground_truth": "Become a success with a disc and hey presto ! You 're a star ... . Rolly sings with",
+      "sha256": "a4db4c8ebe3baa62190ba381c5b361be67418d26a92bf5bf2f3e17d31f7baf65",
+      "byte_length": 32551,
+      "style_category": "punctuation_and_complex"
+    },
+    {
+      "id": "iam-test-04",
+      "filename": "sample_04.png",
+      "ground_truth": "Tolch , as he is known in Tin Pan Alley , likes songs with a month in the title . He wrote",
+      "sha256": "fdf368804aa1bae60657d1faea9f73ec5d3f8dbc2078e265c1e25d854a3aa970",
+      "byte_length": 37460,
+      "style_category": "punctuation_and_complex"
+    },
+    {
+      "id": "iam-test-05",
+      "filename": "sample_05.png",
+      "ground_truth": "\" My September Love , \" the big David Whitfield hit of 1956 .",
+      "sha256": "d943a937e03b1ea9db9924f01c935f0ff9cf42c6b2a88f1943e191204425dcad",
+      "byte_length": 29837,
+      "style_category": "numbers_and_punctuation"
+    },
+    {
+      "id": "iam-test-06",
+      "filename": "sample_06.png",
+      "ground_truth": "He is also a director of a couple of garages . And he finds time as well to be a lyric",
+      "sha256": "54dac31c942b03cb5c9f16df5b7ba282a356db3818d255f335565ffb868a8257",
+      "byte_length": 38288,
+      "style_category": "punctuation_and_complex"
+    },
+    {
+      "id": "iam-test-07",
+      "filename": "sample_07.png",
+      "ground_truth": "writer . He writes with Tolchard Evans , composer of \" Lady of Spain \" and other big hits .",
+      "sha256": "e4a96c73c803a9d84782a886d47cc0bc978436ca5d106ea648906553a282d716",
+      "byte_length": 38799,
+      "style_category": "punctuation_and_complex"
+    },
+    {
+      "id": "iam-test-08",
+      "filename": "sample_08.png",
+      "ground_truth": "The numbers include \" Scotland the Brave , \" \" Men of Harlech , \"",
+      "sha256": "cb049cad9cf12acd5c0255b307da7068740623d921bfe63adb2136f520893633",
+      "byte_length": 22373,
+      "style_category": "punctuation_and_complex"
+    },
+    {
+      "id": "iam-test-09",
+      "filename": "sample_09.png",
+      "ground_truth": "Fay Compton stars in \" No Hiding Place \" (I T V , 9.35 p.m. ) .",
+      "sha256": "e7aa51b4eb4ebd433a343ec9c5f5b9cd537ff63abb7b31f3944c76f6fbcd7e9a",
+      "byte_length": 18261,
+      "style_category": "numbers_and_punctuation"
+    },
+    {
+      "id": "iam-test-10",
+      "filename": "sample_10.png",
+      "ground_truth": "She plays the possessive mother of a man whose hobby revolves",
+      "sha256": "185a1e9659cd80f30f708e845d24453eaa9cb5c7bcd8644ad89f5da0cb1bd7f7",
+      "byte_length": 16467,
+      "style_category": "messy"
+    },
+    {
+      "id": "iam-test-11",
+      "filename": "sample_11.png",
+      "ground_truth": "round a doll's house .",
+      "sha256": "157e8c7b3c87b9cce0b82e4e3407f261f8d30a50c648b0f1adbe1e5e2928230d",
+      "byte_length": 12538,
+      "style_category": "difficult_faint"
+    },
+    {
+      "id": "iam-test-12",
+      "filename": "sample_12.png",
+      "ground_truth": "THREE people will be hypnotised in tonight's \" Lifeline \"",
+      "sha256": "3035f96cf228ac98bbf07be31e4aa0a4ee038d31811a6fa6cdb8b5657f6a4107",
+      "byte_length": 24090,
+      "style_category": "neat"
+    },
+    {
+      "id": "iam-test-13",
+      "filename": "sample_13.png",
+      "ground_truth": "( B B C , 10.15 ) .",
+      "sha256": "3d6597828da84b71c65c18d55cf7f20f789b670590142acce6ecb841d4206b15",
+      "byte_length": 6119,
+      "style_category": "numbers_and_punctuation"
+    },
+    {
+      "id": "iam-test-14",
+      "filename": "sample_14.png",
+      "ground_truth": "\" McNamara's Band , \" \" Greensleeves \" and \" English Rose . \"",
+      "sha256": "9172e273d3c435ebc3f3bda4511a5002347cfbf45b31461e596545104939830e",
+      "byte_length": 14152,
+      "style_category": "punctuation_and_complex"
+    },
+    {
+      "id": "iam-test-15",
+      "filename": "sample_15.png",
+      "ground_truth": "of Rhodesia and Nyasaland ( 10.30 p.m. ) .",
+      "sha256": "a3dfaf7d90f5ec499b5f5ae993cdff1b034d33add3c2b7b1670fa1fbc12b52e2",
+      "byte_length": 15220,
+      "style_category": "numbers_and_punctuation"
+    },
+    {
+      "id": "iam-test-16",
+      "filename": "sample_16.png",
+      "ground_truth": "They will be asked to comment on the design of everyday articles",
+      "sha256": "d20497e8db24f918f66fa07f4bd90b6102b2bba26ae4294fc7c47eab266bda7b",
+      "byte_length": 19977,
+      "style_category": "neat"
+    },
+    {
+      "id": "iam-test-17",
+      "filename": "sample_17.png",
+      "ground_truth": "playwright Arnold Wesker . \" Instead , Muggeridge's appointment",
+      "sha256": "002761ad7c1d660b874b62a9e84fece117831b3cfaa38485466d809eb688b765",
+      "byte_length": 25058,
+      "style_category": "punctuation_and_complex"
+    },
+    {
+      "id": "iam-test-18",
+      "filename": "sample_18.png",
+      "ground_truth": "such as a chair and a motor-car . The idea is to see what happens when",
+      "sha256": "dc10ff527755c1703b92f6f52e2e65ca27a04c2be3ceef8a8273f9353a22693f",
+      "byte_length": 22294,
+      "style_category": "punctuation_and_complex"
+    },
+    {
+      "id": "iam-test-19",
+      "filename": "sample_19.png",
+      "ground_truth": "will be with Sir Roy Welensky the Premier of the Federation",
+      "sha256": "fe4e35c82f44176ab6f848e5c1485f99d06ca8b92587efbdb5c806880054fd31",
+      "byte_length": 27415,
+      "style_category": "difficult_faint"
+    },
+    {
+      "id": "iam-test-20",
+      "filename": "sample_20.png",
+      "ground_truth": "parts of the mind not normally available without hypnosis are used .",
+      "sha256": "8dfd1c474ceab9ad45eefc090a7574d645634217109bb09479443fd4862e0426",
+      "byte_length": 26606,
+      "style_category": "punctuation_and_complex"
+    },
+    {
+      "id": "iam-test-21",
+      "filename": "sample_21.png",
+      "ground_truth": "I T V have postponed Malcolm Muggeridge's \" Appointment with",
+      "sha256": "edbd514184dd9cbd54b2a934379d927472b521fb93438cfac28c352c87b8069a",
+      "byte_length": 18379,
+      "style_category": "cursive"
+    },
+    {
+      "id": "iam-test-22",
+      "filename": "sample_22.png",
+      "ground_truth": "success last night in I T V's \" Private Potter , \" his",
+      "sha256": "e8a4e586db7d0fa74961dadb9162c96830fbe6eec9aee32a2f6c75d059e2bb94",
+      "byte_length": 24651,
+      "style_category": "messy"
+    },
+    {
+      "id": "iam-test-23",
+      "filename": "sample_23.png",
+      "ground_truth": "man could only be regarded as a machine .",
+      "sha256": "8b88c7cd3189ac4434575aed445a84ca9dfcd8f91f1255a3c889cc35dd1447b2",
+      "byte_length": 17557,
+      "style_category": "difficult_faint"
+    },
+    {
+      "id": "iam-test-24",
+      "filename": "sample_24.png",
+      "ground_truth": "date . \" ACTOR Tom Courtenay was an outstanding",
+      "sha256": "7858616d9bb7e796269ecd9655653a123bb9394343f6abf42bcffc6816788e93",
+      "byte_length": 13026,
+      "style_category": "neat"
+    },
+    {
+      "id": "iam-test-25",
+      "filename": "sample_25.png",
+      "ground_truth": "the switch because of the topicality of African",
+      "sha256": "ea1ca663bfb0db70494704f9ebe866a31d02eb3fd8abb3a846bc8df84eabf631",
+      "byte_length": 17292,
+      "style_category": "cursive"
+    },
+    {
+      "id": "iam-test-26",
+      "filename": "sample_26.png",
+      "ground_truth": "essay on soldiering which stated that a fighting",
+      "sha256": "f1737668e3f8b01574108616f50b572c25a48e82037709a1ca424e1b5f60034b",
+      "byte_length": 15832,
+      "style_category": "messy"
+    },
+    {
+      "id": "iam-test-27",
+      "filename": "sample_27.png",
+      "ground_truth": "Say Granada T V , the producers : \" We decided to make",
+      "sha256": "d536472c81421728c2c37f4e14d7c5e289cc1cf471af6f6afc220433f5ea2f2e",
+      "byte_length": 23156,
+      "style_category": "difficult_faint"
+    },
+    {
+      "id": "iam-test-28",
+      "filename": "sample_28.png",
+      "ground_truth": "first big T V part . The play was a brilliantly-written",
+      "sha256": "5ca883bb204dc61a9a5d1af5125ed1a89ac853bf1b7a54b6dd2fbe8c00e2f297",
+      "byte_length": 20229,
+      "style_category": "neat"
+    },
+    {
+      "id": "iam-test-29",
+      "filename": "sample_29.png",
+      "ground_truth": "affairs . The Wesker interview will be seen at a later",
+      "sha256": "6c2142053bc4f4272fa0b5f2e12ffe579b7199ffb5ff1e0a948d55214cd1b29e",
+      "byte_length": 31521,
+      "style_category": "cursive"
+    },
+    {
+      "id": "iam-test-30",
+      "filename": "sample_30.png",
+      "ground_truth": "craggy face , and obstinate , baffled eyes . They stripped",
+      "sha256": "bf44dd887d19adff43f31b9edda91d05f3db9a0a607b7da68a6b089e1b79d1bc",
+      "byte_length": 21165,
+      "style_category": "messy"
+    },
+    {
+      "id": "iam-test-31",
+      "filename": "sample_31.png",
+      "ground_truth": "claimed he had seen a vision of God - only the padre and his",
+      "sha256": "c69b5c213201c9bade45298c53c70eec3e682ac2a64b7e663c6bf4c4d17d3d62",
+      "byte_length": 28300,
+      "style_category": "difficult_faint"
+    },
+    {
+      "id": "iam-test-32",
+      "filename": "sample_32.png",
+      "ground_truth": "Potter screamed during an action , and was arrested . He",
+      "sha256": "2c3d1983ff95c2c637d61391ed7162410040ddc28f6286ec609c2cc8ab0e6608",
+      "byte_length": 20772,
+      "style_category": "neat"
+    },
+    {
+      "id": "iam-test-33",
+      "filename": "sample_33.png",
+      "ground_truth": "him of his ugly battle-dress , to leave him for",
+      "sha256": "faf6c1f42c804001487e315ee66b366b459284003ff60413a517fbbe76d1b514",
+      "byte_length": 21179,
+      "style_category": "cursive"
+    },
+    {
+      "id": "iam-test-34",
+      "filename": "sample_34.png",
+      "ground_truth": "vision .",
+      "sha256": "ad8d8cd0c2bb1ced4197215fcbd79811b5368b4ec785c3218d0644d6e4a208be",
+      "byte_length": 5300,
+      "style_category": "messy"
+    },
+    {
+      "id": "iam-test-35",
+      "filename": "sample_35.png",
+      "ground_truth": "what he was - Potter , a frightened boy who had a",
+      "sha256": "60ff668d7edc26bd9e3e1347b12231e22506b5722474bb577af83458116990a8",
+      "byte_length": 19485,
+      "style_category": "difficult_faint"
+    },
+    {
+      "id": "iam-test-36",
+      "filename": "sample_36.png",
+      "ground_truth": "C O believed him . Courtenay played the part with a gawky ,",
+      "sha256": "b4e03c6334139588862791ef3d524c1f5bf79d4654c5a3d93d4aefc59d673090",
+      "byte_length": 21581,
+      "style_category": "neat"
+    },
+    {
+      "id": "iam-test-37",
+      "filename": "sample_37.png",
+      "ground_truth": "Northern defiance . The cameras played continuously on his",
+      "sha256": "c9b33a14bc0e2f687c4175e121c3bb1821ec5be7628f823a8e37019db5240a03",
+      "byte_length": 25756,
+      "style_category": "cursive"
+    },
+    {
+      "id": "iam-test-38",
+      "filename": "sample_38.png",
+      "ground_truth": "to the European Common Market .",
+      "sha256": "98ab5c26e8d6d008092d8dc70b458eca366477ca5000ba0a16770e2cbd734283",
+      "byte_length": 18939,
+      "style_category": "messy"
+    },
+    {
+      "id": "iam-test-39",
+      "filename": "sample_39.png",
+      "ground_truth": "scene , ranging from pubs , the Eton wall game ,",
+      "sha256": "99a378a826e9ce8959806f924db4773f81c595b7e518a45ce055340c354a6f48",
+      "byte_length": 22093,
+      "style_category": "difficult_faint"
+    }
+  ]
+}

@@ -48,12 +48,12 @@ class BaseRepository:
             raise DatabaseUnavailableError(f"Database insert failed: {str(exc)}") from exc
 
     async def update_one(
-        self, query: Dict[str, Any], update_ops: Dict[str, Any]
+        self, query: Dict[str, Any], update_ops: Dict[str, Any], upsert: bool = False
     ) -> Optional[Dict[str, Any]]:
         """Apply update operations to a single matching document."""
         try:
-            result = await self.collection.update_one(query, update_ops)
-            if result.matched_count == 0:
+            result = await self.collection.update_one(query, update_ops, upsert=upsert)
+            if result.matched_count == 0 and not upsert:
                 return None
             return await self.find_one(query)
         except PyMongoError as exc:

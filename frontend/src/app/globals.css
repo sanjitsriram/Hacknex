@@ -8,5 +8,31 @@
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;scroll-behavior:auto!important}}
 
  .review-grid>*{min-width:0}.review-heading h1,.profile strong{overflow-wrap:anywhere}.profile>div{min-width:0}@media(max-width:700px){.sidebar{visibility:hidden}.sidebar.open{visibility:visible}.document-meta{flex-wrap:wrap}.review-heading{max-width:100%}}
+.document-table,.benchmark-table,.comparison-table{position:relative}
 
-.document-table,.benchmark-table,.comparison-table{position:relative}
+/* Phase 3 TrOCR Handwriting Recognition Styles */
+.ocr-meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;background:#f4f6ee;padding:10px 12px;border-radius:6px;border:1px solid #e2e8d8;margin:10px 0}
+.ocr-meta-item span{font-size:8px;letter-spacing:.5px;color:#7d8b76;text-transform:uppercase;display:block}
+.ocr-meta-item strong{font-size:11px;font-weight:600;color:#2b4537}
+.unverified-badge{display:inline-flex;align-items:center;gap:5px;background:#fff8e6;color:#946816;border:1px solid #ebd498;border-radius:4px;padding:3px 8px;font-size:9px;font-weight:600;letter-spacing:.3px}
+.verified-badge{display:inline-flex;align-items:center;gap:5px;background:#eef6ec;color:#366d3a;border:1px solid #c2e0be;border-radius:4px;padding:3px 8px;font-size:9px;font-weight:600;letter-spacing:.3px}
+.trocr-prediction-box{background:#fff;border:1px solid #d8dfcd;border-radius:6px;padding:14px;margin:12px 0;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+.trocr-prediction-box p{font-family:Georgia,serif;font-size:15px;line-height:1.5;color:#22372c;margin:6px 0 0}
+.trocr-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.trocr-run-btn{display:inline-flex;align-items:center;gap:7px;background:#244f40;color:white;border:1px solid #244f40;border-radius:5px;padding:9px 13px;font-size:11px;font-weight:600;margin-top:10px}
+.trocr-run-btn:hover:not(:disabled){background:#193c31}
+.trocr-run-btn:disabled{opacity:.6;cursor:wait}
+.loading-spinner{animation:trocr-spin 1s linear infinite;display:inline-block}
+@keyframes trocr-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+/* Phase 4 PP-OCRv6 Document Detection Styles */
+.region-overlay.illegible-overlay{background:#e85b4725;border:2px dashed #b83a28}
+.region-overlay.illegible-overlay>span{background:#b83a28}
+.ppocr-action-banner{background:#fdfefb;border:1px solid #d9e2d3;border-radius:8px;padding:16px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:14px;box-shadow:0 1px 4px rgba(37,79,64,0.04)}
+.ppocr-action-banner .banner-info h4{font-size:12px;font-weight:600;color:#1e3c2f;margin:0 0 3px}
+.ppocr-action-banner .banner-info p{font-size:11px;color:#6b7c6c;margin:0}
+.ppocr-run-btn{display:inline-flex;align-items:center;gap:8px;background:#1e4a38;color:#fff;border:1px solid #1e4a38;border-radius:6px;padding:10px 16px;font-size:11px;font-weight:600;box-shadow:0 2px 4px rgba(30,74,56,0.15)}
+.ppocr-run-btn:hover:not(:disabled){background:#133326}
+.ppocr-run-btn:disabled{opacity:.7;cursor:wait}
+.polygon-badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;background:#edf2eb;color:#46654b;padding:2px 6px;border-radius:3px;font-family:monospace}
+.illegible-flag-badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:600;background:#fdeeed;color:#a83222;border:1px solid #f7c3bc;padding:2px 6px;border-radius:3px}

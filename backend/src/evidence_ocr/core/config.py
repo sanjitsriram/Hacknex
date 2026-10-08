@@ -63,6 +63,26 @@ class Settings(BaseSettings):
         description="Allowed document MIME types",
     )
 
+    # Official PaddleOCR Cloud API (Phase 4)
+    paddleocr_access_token: str | None = Field(
+        default=None, description="Baidu AI Studio access token for PaddleOCR Cloud API"
+    )
+    paddleocr_model: str = Field(
+        default="PP-OCRv6", description="PaddleOCR Cloud Model identifier (e.g. PP-OCRv6)"
+    )
+    paddleocr_base_url: str = Field(
+        default="https://paddleocr.aistudio-app.com", description="Official PaddleOCR API service endpoint"
+    )
+    paddleocr_request_timeout_seconds: float = Field(
+        default=60.0, description="HTTP request timeout in seconds for PaddleOCR calls"
+    )
+    paddleocr_poll_timeout_seconds: float = Field(
+        default=300.0, description="Maximum polling duration in seconds for asynchronous jobs"
+    )
+    paddleocr_max_concurrent_jobs: int = Field(
+        default=2, description="Maximum concurrent cloud OCR jobs allowed"
+    )
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v):

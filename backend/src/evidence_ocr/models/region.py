@@ -62,6 +62,24 @@ class RegionEntity(BaseModel):
         description="Structured reason codes, e.g. ['MODEL_DISAGREEMENT', 'LOW_CONFIDENCE']",
     )
     bounding_box: BoundingBox = Field(description="Normalized bounding box coordinates")
+    polygon: Optional[List[List[float]]] = Field(
+        default=None, description="Raw detected polygon vertices [[x1, y1], [x2, y2], ...] in pixel space"
+    )
+    confidence: Optional[float] = Field(
+        default=None, ge=0.0, le=1.0, description="Raw model recognition score"
+    )
+    provider_id: Optional[str] = Field(
+        default=None, description="Provider identifier (e.g. 'paddleocr-cloud')"
+    )
+    model_version: Optional[str] = Field(
+        default=None, description="Model identifier / version (e.g. 'PP-OCRv6')"
+    )
+    provider_job_id: Optional[str] = Field(
+        default=None, description="External provider asynchronous job identifier"
+    )
+    source_sha256: Optional[str] = Field(
+        default=None, description="SHA-256 hash of the input document"
+    )
     status: RegionReviewStatus = Field(default=RegionReviewStatus.PENDING)
     reviewer_decision: Optional[str] = Field(default=None, description="Human confirmed or edited text")
     is_illegible: bool = Field(default=False, description="Flag indicating region marked illegible")

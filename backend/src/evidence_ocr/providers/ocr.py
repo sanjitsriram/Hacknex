@@ -22,11 +22,27 @@ class OCRWord(BaseModel):
     bounding_box: Dict[str, float] = Field(description="Normalized coordinates {x, y, w, h}")
 
 
+class DetectedRegion(BaseModel):
+    """Normalized detected text line/block region with polygon, box, text, and confidence."""
+
+    text: str = Field(description="Extracted text string")
+    confidence: float = Field(ge=0.0, le=1.0, description="Raw model confidence score")
+    bounding_box: Dict[str, float] = Field(description="Normalized percentage coordinates {x, y, w, h}")
+    polygon: Optional[List[List[float]]] = Field(
+        default=None, description="Original unrotated detected polygon vertices in pixel coordinates"
+    )
+    page_index: int = Field(default=0, ge=0, description="Page index (0-indexed)")
+    is_illegible: bool = Field(default=False, description="Flag indicating low confidence or illegibility")
+
+
 class OCRResult(BaseModel):
     """Normalized output from an OCR engine."""
 
     raw_text: str = Field(description="Full extracted text sequence")
     words: List[OCRWord] = Field(default_factory=list, description="Extracted word tokens with locations")
+    detected_regions: List[DetectedRegion] = Field(
+        default_factory=list, description="Document-level detected text regions with polygons"
+    )
     metadata: ProviderMetadata = Field(description="Provider version metadata")
     execution_time_ms: float = Field(ge=0.0, description="Provider latency in milliseconds")
 
@@ -45,6 +61,16 @@ class BaseOCRProvider(ABC):
     ) -> OCRResult:
         """Execute OCR recognition on a single page image."""
         pass
+
+    async def recognize_document(
+        self,
+        document_bytes: bytes,
+        mime_type: str = "application/pdf",
+        filename: Optional[str] = None,
+        language_hint: Optional[str] = None,
+    ) -> OCRResult:
+        """Execute document-level OCR and region detection across pages."""
+        return await self.recognize_page(document_bytes, language_hint)
 
 
 class MockOCRProvider(BaseOCRProvider):

@@ -2,6 +2,7 @@
 
 from typing import Any, Dict, Optional
 from fastapi import Request, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from evidence_ocr.core.logging import get_logger, request_id_ctx
@@ -109,6 +110,18 @@ class ProviderUnavailableError(EvidenceOCRError):
         )
 
 
+class ServiceUnavailableError(EvidenceOCRError):
+    """Raised when an internal service or model engine is unavailable."""
+
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+        super().__init__(
+            message=message,
+            code="SERVICE_UNAVAILABLE",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            details=details,
+        )
+
+
 class StorageOperationError(EvidenceOCRError):
     """Raised when an object storage or GridFS operation fails."""
 
@@ -150,7 +163,7 @@ def format_error_response(
             "details": details or {},
         }
     }
-    return JSONResponse(status_code=status_code, content=payload)
+    return JSONResponse(status_code=status_code, content=jsonable_encoder(payload))
 
 
 async def evidence_ocr_exception_handler(request: Request, exc: EvidenceOCRError) -> JSONResponse:

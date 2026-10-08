@@ -1,16 +1,21 @@
 """FastAPI dependency injection providers."""
 
 from functools import lru_cache
-from typing import Annotated
+from typing import Annotated, Optional
 from fastapi import Depends
 from pymongo.asynchronous.database import AsyncDatabase
 from evidence_ocr.core.config import Settings, get_settings
 from evidence_ocr.db.client import DatabaseManager, get_db, get_db_manager
 from evidence_ocr.db.repositories.documents import DocumentRepository
 from evidence_ocr.db.repositories.jobs import JobRepository
+from evidence_ocr.db.repositories.regions import RegionRepository
 from evidence_ocr.evaluation.service import EvaluationService
 from evidence_ocr.ingestion.service import IngestionService
+from evidence_ocr.providers.ocr import BaseOCRProvider, MockOCRProvider
+from evidence_ocr.providers.paddleocr import PaddleOCRCloudProvider
 from evidence_ocr.providers.storage import BaseStorageProvider, GridFSStorageProvider, MockStorageProvider
+from evidence_ocr.providers.trocr import TrOCRProvider
+from evidence_ocr.recognition.service import RecognitionService
 from evidence_ocr.review.service import ReviewService
 from evidence_ocr.workers.runner import WorkerRunner
 
@@ -42,6 +47,64 @@ def get_job_repository(db: Annotated[AsyncDatabase, Depends(get_db)]) -> JobRepo
     return JobRepository(db)
 
 
+def get_region_repository() -> Optional[RegionRepository]:
+    """Provide RegionRepository instance bound to active database if connected."""
+    db_mgr = get_db_manager()
+    if db_mgr.is_connected:
+        return RegionRepository(db_mgr.get_database())
+    return None
+
+
+# TrOCR Provider Singleton
+_trocr_provider_instance: Optional[TrOCRProvider] = None
+_paddleocr_provider_instance: Optional[PaddleOCRCloudProvider] = None
+
+
+def get_paddleocr_provider(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> PaddleOCRCloudProvider:
+    """Provide official PaddleOCR Cloud Provider configured with Pydantic settings."""
+    global _paddleocr_provider_instance
+    if _paddleocr_provider_instance is None:
+        _paddleocr_provider_instance = PaddleOCRCloudProvider(
+            access_token=settings.paddleocr_access_token,
+            model=settings.paddleocr_model,
+            base_url=settings.paddleocr_base_url,
+            request_timeout=settings.paddleocr_request_timeout_seconds,
+            poll_timeout=settings.paddleocr_poll_timeout_seconds,
+            max_concurrent_jobs=settings.paddleocr_max_concurrent_jobs,
+        )
+    return _paddleocr_provider_instance
+
+
+def get_ocr_provider(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> BaseOCRProvider:
+    """Provide TrOCR handwriting recognition provider."""
+    global _trocr_provider_instance
+    if _trocr_provider_instance is None:
+        _trocr_provider_instance = TrOCRProvider(
+            model_name="microsoft/trocr-base-handwritten",
+            local_files_only=True,
+        )
+    return _trocr_provider_instance
+
+
+def get_recognition_service(
+    ocr_provider: Annotated[BaseOCRProvider, Depends(get_ocr_provider)],
+    doc_repo: Annotated[DocumentRepository, Depends(get_document_repository)],
+    storage: Annotated[BaseStorageProvider, Depends(get_storage_provider)],
+    region_repo: Annotated[RegionRepository, Depends(get_region_repository)],
+) -> RecognitionService:
+    """Provide RecognitionService configured with TrOCR and database repositories."""
+    return RecognitionService(
+        providers=[ocr_provider],
+        document_repo=doc_repo,
+        storage_provider=storage,
+        region_repo=region_repo,
+    )
+
+
 def get_ingestion_service(
     doc_repo: Annotated[DocumentRepository, Depends(get_document_repository)],
     storage: Annotated[BaseStorageProvider, Depends(get_storage_provider)],
@@ -57,24 +120,38 @@ def get_ingestion_service(
     )
 
 
-# Review Service Singleton (preserves review state across requests in Phase 1)
+# Review Service Singleton (preserves review state across requests)
 _review_service_instance: ReviewService | None = None
 
 
 def get_review_service(
     doc_repo: Annotated[DocumentRepository, Depends(get_document_repository)],
+    region_repo: Annotated[RegionRepository, Depends(get_region_repository)] = None,
 ) -> ReviewService:
     """Provide ReviewService instance."""
     global _review_service_instance
     if _review_service_instance is None:
-        _review_service_instance = ReviewService(document_repo=doc_repo)
+        _review_service_instance = ReviewService(document_repo=doc_repo, region_repo=region_repo)
     else:
         _review_service_instance.doc_repo = doc_repo
+        _review_service_instance.region_repo = region_repo
     return _review_service_instance
 
 
 def get_worker_runner(
     job_repo: Annotated[JobRepository, Depends(get_job_repository)],
+    paddle_provider: Annotated[PaddleOCRCloudProvider, Depends(get_paddleocr_provider)],
+    storage: Annotated[BaseStorageProvider, Depends(get_storage_provider)],
+    doc_repo: Annotated[DocumentRepository, Depends(get_document_repository)],
+    recognition_service: Annotated[RecognitionService, Depends(get_recognition_service)],
 ) -> WorkerRunner:
-    """Provide WorkerRunner instance."""
-    return WorkerRunner(job_repo=job_repo)
+    """Provide WorkerRunner configured with PP-OCRv6 cloud and storage providers."""
+    region_repo = get_region_repository()
+    return WorkerRunner(
+        job_repo=job_repo,
+        cloud_ocr_provider=paddle_provider,
+        storage_provider=storage,
+        doc_repo=doc_repo,
+        region_repo=region_repo,
+        recognition_service=recognition_service,
+    )

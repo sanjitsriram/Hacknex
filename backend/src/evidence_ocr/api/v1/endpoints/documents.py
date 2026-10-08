@@ -9,23 +9,33 @@ from evidence_ocr.api.dependencies import (
     get_document_repository,
     get_ingestion_service,
     get_job_repository,
+    get_recognition_service,
+    get_region_repository,
     get_storage_provider,
     get_worker_runner,
 )
 from evidence_ocr.core.errors import EntityNotFoundError
 from evidence_ocr.db.repositories.documents import DocumentRepository
 from evidence_ocr.db.repositories.jobs import JobRepository
+from evidence_ocr.db.repositories.regions import RegionRepository
 from evidence_ocr.ingestion.service import IngestionService
 from evidence_ocr.models.document import DocumentStatus
 from evidence_ocr.models.job import JobStage, JobStatus, ProcessingJob
 from evidence_ocr.providers.storage import BaseStorageProvider
+from evidence_ocr.recognition.service import RecognitionService
 from evidence_ocr.schemas.documents import (
     DocumentDetailResponse,
     DocumentItemResponse,
     DocumentListResponse,
     DocumentUploadResponse,
 )
-from evidence_ocr.schemas.jobs import JobCreateRequest, JobResponse
+from evidence_ocr.schemas.jobs import JobCreateRequest, JobResponse, JobStatusResponse
+from evidence_ocr.schemas.recognition import (
+    DocumentRegionDetail,
+    DocumentRegionsListResponse,
+    RegionRecognitionRequest,
+    RegionRecognitionResponse,
+)
 from evidence_ocr.workers.runner import WorkerRunner
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
@@ -215,7 +225,7 @@ async def stream_document_file(
     response_model=JobResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Schedule recognition job",
-    description="Enqueues asynchronous OCR recognition pipeline for the specified document.",
+    description="Enqueues asynchronous OCR recognition pipeline for the specified document with duplicate prevention.",
 )
 async def schedule_recognition(
     id: str,
@@ -224,10 +234,23 @@ async def schedule_recognition(
     job_repo: Annotated[JobRepository, Depends(get_job_repository)],
     worker_runner: Annotated[WorkerRunner, Depends(get_worker_runner)],
 ) -> JobResponse:
-    """Create and dispatch asynchronous recognition job."""
+    """Create and dispatch asynchronous recognition job or return active job."""
     doc = await doc_repo.get_by_id(id)
     if not doc:
         raise EntityNotFoundError("Document", id)
+
+    # Check for active existing job to prevent redundant duplicate execution
+    active_job = await job_repo.find_active_by_document(id)
+    if active_job:
+        return JobResponse(
+            job_id=active_job.id,
+            document_id=active_job.document_id,
+            status=active_job.status,
+            stage=active_job.stage,
+            provider=getattr(active_job, "provider", "paddleocr-cloud") or "paddleocr-cloud",
+            model=getattr(active_job, "model", "PP-OCRv6") or "PP-OCRv6",
+            created_at=active_job.created_at,
+        )
 
     now = datetime.now(timezone.utc).isoformat()
     job_id = f"job-{uuid.uuid4().hex[:8]}"
@@ -239,6 +262,8 @@ async def schedule_recognition(
         idempotency_key=payload.idempotency_key,
         status=JobStatus.QUEUED,
         stage=JobStage.INGESTION,
+        provider="paddleocr-cloud",
+        model="PP-OCRv6",
         created_at=now,
         updated_at=now,
     )
@@ -251,5 +276,117 @@ async def schedule_recognition(
         document_id=job.document_id,
         status=job.status,
         stage=job.stage,
+        provider=job.provider,
+        model=job.model,
         created_at=job.created_at,
     )
+
+
+@router.get(
+    "/{id}/regions",
+    response_model=DocumentRegionsListResponse,
+    summary="List detected document regions",
+    description="Retrieves all detected regions, visual bounding boxes, original polygons, and candidate recognition proposals.",
+)
+async def list_document_regions(
+    id: str,
+    doc_repo: Annotated[DocumentRepository, Depends(get_document_repository)],
+    region_repo: Annotated[Optional[RegionRepository], Depends(get_region_repository)] = None,
+) -> DocumentRegionsListResponse:
+    """Retrieve persisted detected regions for a document from MongoDB."""
+    doc = await doc_repo.get_by_id(id)
+    if not doc:
+        raise EntityNotFoundError("Document", id)
+
+    if region_repo is None:
+        return DocumentRegionsListResponse(document_id=id, total=0, items=[])
+
+    entities = await region_repo.get_by_document_id(id)
+    items = [
+        DocumentRegionDetail(
+            id=r.id,
+            document_id=r.document_id,
+            page_index=r.page_index,
+            line=r.line,
+            original=r.original,
+            bounding_box=r.bounding_box,
+            polygon=r.polygon,
+            confidence=r.confidence,
+            provider_id=r.provider_id,
+            model_version=r.model_version,
+            candidates_detail=r.candidates_detail,
+            status=r.status.value if hasattr(r.status, "value") else str(r.status),
+            reviewer_decision=r.reviewer_decision,
+            is_illegible=r.is_illegible,
+        )
+        for r in entities
+    ]
+
+    return DocumentRegionsListResponse(
+        document_id=id,
+        total=len(items),
+        items=items,
+    )
+
+
+@router.get(
+    "/{id}/jobs",
+    response_model=list[JobStatusResponse],
+    summary="List document processing jobs",
+    description="Retrieves execution history and statuses of all recognition jobs for the document.",
+)
+async def list_document_jobs(
+    id: str,
+    doc_repo: Annotated[DocumentRepository, Depends(get_document_repository)],
+    job_repo: Annotated[JobRepository, Depends(get_job_repository)],
+) -> list[JobStatusResponse]:
+    """Retrieve all jobs recorded for this document."""
+    doc = await doc_repo.get_by_id(id)
+    if not doc:
+        raise EntityNotFoundError("Document", id)
+
+    jobs = await job_repo.list_by_document(id)
+    return [
+        JobStatusResponse(
+            job_id=j.id,
+            document_id=j.document_id,
+            status=j.status,
+            stage=j.stage,
+            provider=getattr(j, "provider", "paddleocr-cloud") or "paddleocr-cloud",
+            model=getattr(j, "model", "PP-OCRv6") or "PP-OCRv6",
+            provider_job_id=j.provider_job_id,
+            processed_page_count=j.processed_page_count,
+            execution_time_ms=j.execution_time_ms,
+            error=j.error_message,
+            retry_count=j.retry_count,
+            started_at=j.started_at,
+            created_at=j.created_at,
+            updated_at=j.updated_at,
+            completed_at=j.completed_at,
+        )
+        for j in jobs
+    ]
+
+
+@router.post(
+    "/{id}/regions/{region_id}/recognize",
+    response_model=RegionRecognitionResponse,
+    summary="Execute on-demand TrOCR handwriting recognition",
+    description="Extracts the specified region crop from the document in GridFS, executes TrOCR, and saves the candidate proposal.",
+)
+async def recognize_region(
+    id: str,
+    region_id: str,
+    payload: Optional[RegionRecognitionRequest] = None,
+    recognition_service: Annotated[RecognitionService, Depends(get_recognition_service)] = None,
+) -> RegionRecognitionResponse:
+    """Execute real TrOCR inference on document region crop."""
+    bbox = payload.bounding_box if payload else None
+    page_idx = payload.page_index if payload else 0
+    return await recognition_service.recognize_region(
+        document_id=id,
+        region_id=region_id,
+        bounding_box=bbox,
+        page_index=page_idx,
+    )
+

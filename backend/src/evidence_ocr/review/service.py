@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 from evidence_ocr.core.errors import EntityNotFoundError, InvalidInputError, PreconditionFailedError
 from evidence_ocr.core.logging import get_logger
 from evidence_ocr.db.repositories.documents import DocumentRepository
+from evidence_ocr.db.repositories.regions import RegionRepository
 from evidence_ocr.models.audit import AuditEvent
 from evidence_ocr.models.document import DocumentStatus
 from evidence_ocr.schemas.review import (
@@ -23,8 +24,13 @@ logger = get_logger("evidence_ocr.review")
 class ReviewService:
     """Manages reviewer modifications, optimistic concurrency revision checks, and audit trails."""
 
-    def __init__(self, document_repo: DocumentRepository) -> None:
+    def __init__(
+        self,
+        document_repo: DocumentRepository,
+        region_repo: Optional[RegionRepository] = None,
+    ) -> None:
         self.doc_repo = document_repo
+        self.region_repo = region_repo
         # Memory audit store for Phase 1
         self._audit_events: List[AuditEvent] = []
         self._region_decisions: Dict[str, Dict[str, str]] = {}
@@ -43,47 +49,69 @@ class ReviewService:
         )
 
         decisions = self._region_decisions.get(document_id, {})
-        regions = [
-            RegionItemResponse(
-                id="r1",
-                line="The north wall measures 4.8 metres.",
-                original="4.8",
-                alternatives=["4.8", "4.3"],
-                reason="The whole-line reading and word crop disagree on the last digit.",
-                x=57.0,
-                y=29.8,
-                w=12.0,
-                h=5.0,
-                status="accepted" if "r1" in decisions else "pending",
-                decision=decisions.get("r1"),
-            ),
-            RegionItemResponse(
-                id="r2",
-                line="Follow up with Mr. Harris on Friday.",
-                original="Harris",
-                alternatives=["Harris", "Harvis"],
-                reason="Two recognition candidates disagree on the middle letter pair.",
-                x=46.0,
-                y=45.5,
-                w=19.0,
-                h=5.0,
-                status="accepted" if "r2" in decisions else "pending",
-                decision=decisions.get("r2"),
-            ),
-            RegionItemResponse(
-                id="r3",
-                line="Replace the bracket before inspection.",
-                original="bracket",
-                alternatives=["bracket", "basket"],
-                reason="Overlapping strokes reduce the legibility of this region.",
-                x=33.0,
-                y=56.0,
-                w=24.0,
-                h=5.0,
-                status="accepted" if "r3" in decisions else "pending",
-                decision=decisions.get("r3"),
-            ),
-        ]
+        regions = []
+        if self.region_repo:
+            db_regions = await self.region_repo.list_by_document(document_id)
+            if db_regions:
+                regions = [
+                    RegionItemResponse(
+                        id=r.id,
+                        line=r.line,
+                        original=r.original,
+                        alternatives=r.alternatives,
+                        reason=r.reason,
+                        x=r.bounding_box.x,
+                        y=r.bounding_box.y,
+                        w=r.bounding_box.w,
+                        h=r.bounding_box.h,
+                        status=r.status.value if hasattr(r.status, "value") else str(r.status),
+                        decision=r.reviewer_decision,
+                    )
+                    for r in db_regions
+                ]
+
+        if not regions:
+            regions = [
+                RegionItemResponse(
+                    id="r1",
+                    line="The north wall measures 4.8 metres.",
+                    original="4.8",
+                    alternatives=["4.8", "4.3"],
+                    reason="The whole-line reading and word crop disagree on the last digit.",
+                    x=57.0,
+                    y=29.8,
+                    w=12.0,
+                    h=5.0,
+                    status="accepted" if "r1" in decisions else "pending",
+                    decision=decisions.get("r1"),
+                ),
+                RegionItemResponse(
+                    id="r2",
+                    line="Follow up with Mr. Harris on Friday.",
+                    original="Harris",
+                    alternatives=["Harris", "Harvis"],
+                    reason="Two recognition candidates disagree on the middle letter pair.",
+                    x=46.0,
+                    y=45.5,
+                    w=19.0,
+                    h=5.0,
+                    status="accepted" if "r2" in decisions else "pending",
+                    decision=decisions.get("r2"),
+                ),
+                RegionItemResponse(
+                    id="r3",
+                    line="Replace the bracket before inspection.",
+                    original="bracket",
+                    alternatives=["bracket", "basket"],
+                    reason="Overlapping strokes reduce the legibility of this region.",
+                    x=33.0,
+                    y=56.0,
+                    w=24.0,
+                    h=5.0,
+                    status="accepted" if "r3" in decisions else "pending",
+                    decision=decisions.get("r3"),
+                ),
+            ]
 
         doc_events = [
             AuditEventResponse(
@@ -123,6 +151,14 @@ class ReviewService:
         if document_id not in self._region_decisions:
             self._region_decisions[document_id] = {}
         self._region_decisions[document_id][region_id] = decision
+
+        if self.region_repo:
+            await self.region_repo.update_decision(
+                document_id=document_id,
+                region_id=region_id,
+                decision=decision,
+                is_illegible=is_illegible,
+            )
 
         action_name = "Marked illegible" if is_illegible else "Accepted alternative"
         event = AuditEvent(

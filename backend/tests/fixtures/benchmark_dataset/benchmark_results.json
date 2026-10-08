@@ -1,0 +1,759 @@
+{
+  "benchmark_id": "eval-trocr-base-iam-line-v1",
+  "timestamp": "2026-10-08T15:36:57Z",
+  "dataset_name": "IAM-Handwriting-Line-Test",
+  "dataset_sha256": "0f7270051136d5d2708ef1d2a0d276c7809847f0aada0799a572ea8a4d118f2d",
+  "total_samples": 40,
+  "total_characters_evaluated": 2302,
+  "total_words_evaluated": 487,
+  "model_identifier": "microsoft/trocr-base-handwritten",
+  "model_parameters": 333921792,
+  "device": "cpu",
+  "cpu_info": "Intel(R) Core(TM) Ultra 7 155H (16 physical cores, 22 threads)",
+  "model_load_time_sec": 1.298,
+  "process_ram_initial_mb": 414.38,
+  "process_ram_peak_mb": 1432.06,
+  "ram_delta_mb": 1017.68,
+  "metrics": {
+    "cer": 0.066,
+    "wer": 0.1807,
+    "exact_match_rate_pct": 20.0,
+    "numeric_error_rate_pct": 60.0,
+    "numeric_evaluated_lines": 5,
+    "numeric_mismatches": 3
+  },
+  "latencies": {
+    "mean_sec": 3.54,
+    "median_p50_sec": 2.491,
+    "p90_sec": 7.407,
+    "p95_sec": 9.729,
+    "min_sec": 0.922,
+    "max_sec": 13.183
+  },
+  "category_breakdown": {
+    "cursive": {
+      "count": 5,
+      "cer": 0.109,
+      "wer": 0.2708,
+      "exact_match_rate": 0.0,
+      "mean_latency_sec": 2.171
+    },
+    "difficult_faint": {
+      "count": 7,
+      "cer": 0.039,
+      "wer": 0.12,
+      "exact_match_rate": 57.1,
+      "mean_latency_sec": 2.183
+    },
+    "messy": {
+      "count": 6,
+      "cer": 0.0731,
+      "wer": 0.2157,
+      "exact_match_rate": 0.0,
+      "mean_latency_sec": 2.04
+    },
+    "neat": {
+      "count": 6,
+      "cer": 0.0385,
+      "wer": 0.1212,
+      "exact_match_rate": 33.3,
+      "mean_latency_sec": 2.445
+    },
+    "numbers_and_punctuation": {
+      "count": 5,
+      "cer": 0.1016,
+      "wer": 0.3226,
+      "exact_match_rate": 0.0,
+      "mean_latency_sec": 4.228
+    },
+    "punctuation_and_complex": {
+      "count": 11,
+      "cer": 0.0612,
+      "wer": 0.1459,
+      "exact_match_rate": 18.2,
+      "mean_latency_sec": 6.13
+    }
+  },
+  "sample_evaluations": [
+    {
+      "id": "iam-test-00",
+      "filename": "sample_00.png",
+      "style_category": "punctuation_and_complex",
+      "image_size": [
+        2611,
+        128
+      ],
+      "ground_truth": "assuredness \" Bella Bella Marie \" ( Parlophone ) , a lively song that changes tempo mid-way .",
+      "prediction": "assuredness \" Bella Bella Marie \" ( Bishopsome ) a lively song that changes tempo midway",
+      "latency_sec": 13.183,
+      "cer": 0.1183,
+      "wer": 0.2222,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-01",
+      "filename": "sample_01.png",
+      "style_category": "punctuation_and_complex",
+      "image_size": [
+        2403,
+        128
+      ],
+      "ground_truth": "I don't think he will storm the charts with this one , but it 's a good start .",
+      "prediction": "I don't think he will storm the charts with this one , but it's a good start .",
+      "latency_sec": 7.312,
+      "cer": 0.0127,
+      "wer": 0.1053,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-02",
+      "filename": "sample_02.png",
+      "style_category": "numbers_and_punctuation",
+      "image_size": [
+        3500,
+        128
+      ],
+      "ground_truth": "CHRIS CHARLES , 39 , who lives in Stockton-on-Tees , is an accountant .",
+      "prediction": "CHRIS CHARLES , 33 , who lives in Stockton - on - Tee's , is an accountant .",
+      "latency_sec": 4.101,
+      "cer": 0.0845,
+      "wer": 0.4286,
+      "exact_match": false,
+      "ground_truth_digits": "39",
+      "prediction_digits": "33"
+    },
+    {
+      "id": "iam-test-03",
+      "filename": "sample_03.png",
+      "style_category": "punctuation_and_complex",
+      "image_size": [
+        2795,
+        128
+      ],
+      "ground_truth": "Become a success with a disc and hey presto ! You 're a star ... . Rolly sings with",
+      "prediction": "Become a success with a disc and they presto ! You're a star ... Rolly sings with",
+      "latency_sec": 3.69,
+      "cer": 0.0482,
+      "wer": 0.2105,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-04",
+      "filename": "sample_04.png",
+      "style_category": "punctuation_and_complex",
+      "image_size": [
+        3271,
+        128
+      ],
+      "ground_truth": "Tolch , as he is known in Tin Pan Alley , likes songs with a month in the title . He wrote",
+      "prediction": "Folch , as he is known in Tin Pan Alley , lives , with a month in the title . He wrote",
+      "latency_sec": 8.255,
+      "cer": 0.0778,
+      "wer": 0.1364,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-05",
+      "filename": "sample_05.png",
+      "style_category": "numbers_and_punctuation",
+      "image_size": [
+        2566,
+        128
+      ],
+      "ground_truth": "\" My September Love , \" the big David Whitfield hit of 1956 .",
+      "prediction": "\" My September Love \" , the big David Whitfield hit of 1956 .",
+      "latency_sec": 7.199,
+      "cer": 0.0328,
+      "wer": 0.1429,
+      "exact_match": false,
+      "ground_truth_digits": "1956",
+      "prediction_digits": "1956"
+    },
+    {
+      "id": "iam-test-06",
+      "filename": "sample_06.png",
+      "style_category": "punctuation_and_complex",
+      "image_size": [
+        3232,
+        128
+      ],
+      "ground_truth": "He is also a director of a couple of garages . And he finds time as well to be a lyric",
+      "prediction": "He is also a director of a couple of garages . And he finds time as well to be a lyric",
+      "latency_sec": 10.249,
+      "cer": 0.0,
+      "wer": 0.0,
+      "exact_match": true,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-07",
+      "filename": "sample_07.png",
+      "style_category": "punctuation_and_complex",
+      "image_size": [
+        3278,
+        128
+      ],
+      "ground_truth": "writer . He writes with Tolchard Evans , composer of \" Lady of Spain \" and other big hits .",
+      "prediction": "writer . He writes with Tolchard Evans , composer of \" Lady of Spain \" and other big hits",
+      "latency_sec": 9.702,
+      "cer": 0.022,
+      "wer": 0.05,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-08",
+      "filename": "sample_08.png",
+      "style_category": "punctuation_and_complex",
+      "image_size": [
+        2009,
+        128
+      ],
+      "ground_truth": "The numbers include \" Scotland the Brave , \" \" Men of Harlech , \"",
+      "prediction": "the numbers include \" Scotland the Brave , \" \" Men of Harlem , \"",
+      "latency_sec": 3.964,
+      "cer": 0.0462,
+      "wer": 0.1333,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-09",
+      "filename": "sample_09.png",
+      "style_category": "numbers_and_punctuation",
+      "image_size": [
+        1692,
+        128
+      ],
+      "ground_truth": "Fay Compton stars in \" No Hiding Place \" (I T V , 9.35 p.m. ) .",
+      "prediction": "Bay Compton stars in \" No. Hiding Place \" ( I.T.P. , 9.33 p.m. ) .",
+      "latency_sec": 5.177,
+      "cer": 0.127,
+      "wer": 0.3529,
+      "exact_match": false,
+      "ground_truth_digits": "935",
+      "prediction_digits": "933"
+    },
+    {
+      "id": "iam-test-10",
+      "filename": "sample_10.png",
+      "style_category": "messy",
+      "image_size": [
+        1552,
+        128
+      ],
+      "ground_truth": "She plays the possessive mother of a man whose hobby revolves",
+      "prediction": "She plays the possessive mother of a man whose hobby revolues",
+      "latency_sec": 2.463,
+      "cer": 0.0164,
+      "wer": 0.0909,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-11",
+      "filename": "sample_11.png",
+      "style_category": "difficult_faint",
+      "image_size": [
+        959,
+        128
+      ],
+      "ground_truth": "round a doll's house .",
+      "prediction": "round a doll's house .",
+      "latency_sec": 1.249,
+      "cer": 0.0,
+      "wer": 0.0,
+      "exact_match": true,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-12",
+      "filename": "sample_12.png",
+      "style_category": "neat",
+      "image_size": [
+        1903,
+        128
+      ],
+      "ground_truth": "THREE people will be hypnotised in tonight's \" Lifeline \"",
+      "prediction": "THREE people will be hypothesized in tonight's \" Lifeline \"",
+      "latency_sec": 2.186,
+      "cer": 0.0877,
+      "wer": 0.1,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-13",
+      "filename": "sample_13.png",
+      "style_category": "numbers_and_punctuation",
+      "image_size": [
+        524,
+        128
+      ],
+      "ground_truth": "( B B C , 10.15 ) .",
+      "prediction": "CBE , 10.15 ) .",
+      "latency_sec": 1.53,
+      "cer": 0.3158,
+      "wer": 0.5,
+      "exact_match": false,
+      "ground_truth_digits": "1015",
+      "prediction_digits": "1015"
+    },
+    {
+      "id": "iam-test-14",
+      "filename": "sample_14.png",
+      "style_category": "punctuation_and_complex",
+      "image_size": [
+        1394,
+        128
+      ],
+      "ground_truth": "\" McNamara's Band , \" \" Greensleeves \" and \" English Rose . \"",
+      "prediction": "\" Mr. Namara's band , \" \" Green sleeves \" and \" English base . \"",
+      "latency_sec": 3.446,
+      "cer": 0.1148,
+      "wer": 0.4286,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-15",
+      "filename": "sample_15.png",
+      "style_category": "numbers_and_punctuation",
+      "image_size": [
+        1394,
+        128
+      ],
+      "ground_truth": "of Rhodesia and Nyasaland ( 10.30 p.m. ) .",
+      "prediction": "of Rhodesia and Nyasaland Co.30 p.m. ) .",
+      "latency_sec": 3.134,
+      "cer": 0.0952,
+      "wer": 0.2222,
+      "exact_match": false,
+      "ground_truth_digits": "1030",
+      "prediction_digits": "30"
+    },
+    {
+      "id": "iam-test-16",
+      "filename": "sample_16.png",
+      "style_category": "neat",
+      "image_size": [
+        1923,
+        128
+      ],
+      "ground_truth": "They will be asked to comment on the design of everyday articles",
+      "prediction": "They will be asked to comment on the design of everyday articles",
+      "latency_sec": 2.39,
+      "cer": 0.0,
+      "wer": 0.0,
+      "exact_match": true,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-17",
+      "filename": "sample_17.png",
+      "style_category": "punctuation_and_complex",
+      "image_size": [
+        1826,
+        128
+      ],
+      "ground_truth": "playwright Arnold Wesker . \" Instead , Muggeridge's appointment",
+      "prediction": "playwright Arnold Walker . \" Instead , Muggeridge's opportunity",
+      "latency_sec": 2.224,
+      "cer": 0.1429,
+      "wer": 0.2222,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-18",
+      "filename": "sample_18.png",
+      "style_category": "punctuation_and_complex",
+      "image_size": [
+        2209,
+        128
+      ],
+      "ground_truth": "such as a chair and a motor-car . The idea is to see what happens when",
+      "prediction": "such as a chair and a motor-car . The idea is to see what happens when",
+      "latency_sec": 3.021,
+      "cer": 0.0,
+      "wer": 0.0,
+      "exact_match": true,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-19",
+      "filename": "sample_19.png",
+      "style_category": "difficult_faint",
+      "image_size": [
+        2028,
+        128
+      ],
+      "ground_truth": "will be with Sir Roy Welensky the Premier of the Federation",
+      "prediction": "will be with Sir Roy Welensky the Premier of the Federation",
+      "latency_sec": 2.205,
+      "cer": 0.0,
+      "wer": 0.0,
+      "exact_match": true,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-20",
+      "filename": "sample_20.png",
+      "style_category": "punctuation_and_complex",
+      "image_size": [
+        2472,
+        128
+      ],
+      "ground_truth": "parts of the mind not normally available without hypnosis are used .",
+      "prediction": "parts at the wind not marginally available without hypnosis are used .",
+      "latency_sec": 2.383,
+      "cer": 0.1176,
+      "wer": 0.25,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-21",
+      "filename": "sample_21.png",
+      "style_category": "cursive",
+      "image_size": [
+        1756,
+        128
+      ],
+      "ground_truth": "I T V have postponed Malcolm Muggeridge's \" Appointment with",
+      "prediction": "ITV have postponed Malcolm Muggeridge's \" Appointment with",
+      "latency_sec": 2.519,
+      "cer": 0.0333,
+      "wer": 0.3,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-22",
+      "filename": "sample_22.png",
+      "style_category": "messy",
+      "image_size": [
+        2166,
+        128
+      ],
+      "ground_truth": "success last night in I T V's \" Private Potter , \" his",
+      "prediction": "success last night in ITV's \" Private Potter , \" his",
+      "latency_sec": 2.276,
+      "cer": 0.037,
+      "wer": 0.2308,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-23",
+      "filename": "sample_23.png",
+      "style_category": "difficult_faint",
+      "image_size": [
+        1748,
+        128
+      ],
+      "ground_truth": "man could only be regarded as a machine .",
+      "prediction": "man could only be regarded as a machine .",
+      "latency_sec": 1.627,
+      "cer": 0.0,
+      "wer": 0.0,
+      "exact_match": true,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-24",
+      "filename": "sample_24.png",
+      "style_category": "neat",
+      "image_size": [
+        1435,
+        128
+      ],
+      "ground_truth": "date . \" ACTOR Tom Courtenay was an outstanding",
+      "prediction": "Hate . \" ACTOR Tom Courtenay was an outstanding",
+      "latency_sec": 2.098,
+      "cer": 0.0213,
+      "wer": 0.1111,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-25",
+      "filename": "sample_25.png",
+      "style_category": "cursive",
+      "image_size": [
+        1612,
+        128
+      ],
+      "ground_truth": "the switch because of the topicality of African",
+      "prediction": "the switch because of the typicality of Africans",
+      "latency_sec": 1.738,
+      "cer": 0.0426,
+      "wer": 0.25,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-26",
+      "filename": "sample_26.png",
+      "style_category": "messy",
+      "image_size": [
+        1401,
+        128
+      ],
+      "ground_truth": "essay on soldiering which stated that a fighting",
+      "prediction": "essory on coldbenting which started that a fighting",
+      "latency_sec": 2.289,
+      "cer": 0.1458,
+      "wer": 0.375,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-27",
+      "filename": "sample_27.png",
+      "style_category": "difficult_faint",
+      "image_size": [
+        2088,
+        128
+      ],
+      "ground_truth": "Say Granada T V , the producers : \" We decided to make",
+      "prediction": "Say Granada TV , the producers ! \" We decided to make",
+      "latency_sec": 2.872,
+      "cer": 0.037,
+      "wer": 0.2308,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-28",
+      "filename": "sample_28.png",
+      "style_category": "neat",
+      "image_size": [
+        1674,
+        128
+      ],
+      "ground_truth": "first big T V part . The play was a brilliantly-written",
+      "prediction": "first big TV part . The play was a brilliantly-written",
+      "latency_sec": 2.704,
+      "cer": 0.0182,
+      "wer": 0.1818,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-29",
+      "filename": "sample_29.png",
+      "style_category": "cursive",
+      "image_size": [
+        2736,
+        128
+      ],
+      "ground_truth": "affairs . The Wesker interview will be seen at a later",
+      "prediction": "offairs . The Wesker interview will be seen at a later",
+      "latency_sec": 2.895,
+      "cer": 0.0185,
+      "wer": 0.0909,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-30",
+      "filename": "sample_30.png",
+      "style_category": "messy",
+      "image_size": [
+        1669,
+        128
+      ],
+      "ground_truth": "craggy face , and obstinate , baffled eyes . They stripped",
+      "prediction": "craggy lace , and obstinate , battled eyes . They stripped",
+      "latency_sec": 3.14,
+      "cer": 0.0517,
+      "wer": 0.1818,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-31",
+      "filename": "sample_31.png",
+      "style_category": "difficult_faint",
+      "image_size": [
+        2454,
+        128
+      ],
+      "ground_truth": "claimed he had seen a vision of God - only the padre and his",
+      "prediction": "claimed Ireland seem on vision of God - only the padre and his",
+      "latency_sec": 2.883,
+      "cer": 0.1333,
+      "wer": 0.2857,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-32",
+      "filename": "sample_32.png",
+      "style_category": "neat",
+      "image_size": [
+        1832,
+        128
+      ],
+      "ground_truth": "Potter screamed during an action , and was arrested . He",
+      "prediction": "Potter screamed during an action , and was arrested . He",
+      "latency_sec": 2.216,
+      "cer": 0.0,
+      "wer": 0.0,
+      "exact_match": true,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-33",
+      "filename": "sample_33.png",
+      "style_category": "cursive",
+      "image_size": [
+        1701,
+        128
+      ],
+      "ground_truth": "him of his ugly battle-dress , to leave him for",
+      "prediction": "When others might be able to leave him for",
+      "latency_sec": 1.765,
+      "cer": 0.4894,
+      "wer": 0.6,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-34",
+      "filename": "sample_34.png",
+      "style_category": "messy",
+      "image_size": [
+        348,
+        128
+      ],
+      "ground_truth": "vision .",
+      "prediction": "visionplay .",
+      "latency_sec": 0.922,
+      "cer": 0.5,
+      "wer": 0.5,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-35",
+      "filename": "sample_35.png",
+      "style_category": "difficult_faint",
+      "image_size": [
+        1654,
+        128
+      ],
+      "ground_truth": "what he was - Potter , a frightened boy who had a",
+      "prediction": "what he was - better , a frightened boy who had an",
+      "latency_sec": 2.257,
+      "cer": 0.0612,
+      "wer": 0.1667,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-36",
+      "filename": "sample_36.png",
+      "style_category": "neat",
+      "image_size": [
+        1993,
+        128
+      ],
+      "ground_truth": "C O believed him . Courtenay played the part with a gawky ,",
+      "prediction": "co believed him . Courtenay played the past with a gawley ,",
+      "latency_sec": 3.078,
+      "cer": 0.1017,
+      "wer": 0.3077,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-37",
+      "filename": "sample_37.png",
+      "style_category": "cursive",
+      "image_size": [
+        2200,
+        128
+      ],
+      "ground_truth": "Northern defiance . The cameras played continuously on his",
+      "prediction": "Northern Defiance . The cameras played continuously on his",
+      "latency_sec": 1.938,
+      "cer": 0.0172,
+      "wer": 0.1111,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-38",
+      "filename": "sample_38.png",
+      "style_category": "messy",
+      "image_size": [
+        1533,
+        128
+      ],
+      "ground_truth": "to the European Common Market .",
+      "prediction": "to the European Common Market",
+      "latency_sec": 1.148,
+      "cer": 0.0645,
+      "wer": 0.1667,
+      "exact_match": false,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    },
+    {
+      "id": "iam-test-39",
+      "filename": "sample_39.png",
+      "style_category": "difficult_faint",
+      "image_size": [
+        1942,
+        128
+      ],
+      "ground_truth": "scene , ranging from pubs , the Eton wall game ,",
+      "prediction": "scene , ranging from pubs , the Eton wall game ,",
+      "latency_sec": 2.188,
+      "cer": 0.0,
+      "wer": 0.0,
+      "exact_match": true,
+      "ground_truth_digits": "",
+      "prediction_digits": ""
+    }
+  ]
+}

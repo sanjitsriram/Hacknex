@@ -38,19 +38,75 @@ class JobRepository(BaseRepository):
             return None
         return ProcessingJob(**res)
 
-    async def mark_completed(self, job_id: str) -> Optional[ProcessingJob]:
+    async def find_active_by_document(self, document_id: str) -> Optional[ProcessingJob]:
+        """Find any currently pending, queued, submitted, or running job for this document."""
+        doc = await self.find_one(
+            {
+                "document_id": document_id,
+                "status": {"$in": [JobStatus.QUEUED.value, JobStatus.SUBMITTED.value, JobStatus.RUNNING.value]},
+            }
+        )
+        if not doc:
+            return None
+        return ProcessingJob(**doc)
+
+    async def list_by_document(self, document_id: str, limit: int = 50) -> list[ProcessingJob]:
+        """List historical processing jobs for a document, newest first."""
+        docs = await self.find_many(
+            {"document_id": document_id},
+            sort_field="created_at",
+            sort_direction=-1,
+            limit=limit,
+        )
+        return [ProcessingJob(**d) for d in docs]
+
+    async def update_metadata(
+        self,
+        job_id: str,
+        provider_job_id: Optional[str] = None,
+        processed_page_count: Optional[int] = None,
+        execution_time_ms: Optional[float] = None,
+        started_at: Optional[str] = None,
+    ) -> Optional[ProcessingJob]:
+        """Update job provider metadata and execution metrics."""
+        now = datetime.now(timezone.utc).isoformat()
+        updates: dict = {"updated_at": now}
+        if provider_job_id is not None:
+            updates["provider_job_id"] = provider_job_id
+        if processed_page_count is not None:
+            updates["processed_page_count"] = processed_page_count
+        if execution_time_ms is not None:
+            updates["execution_time_ms"] = execution_time_ms
+        if started_at is not None:
+            updates["started_at"] = started_at
+
+        res = await self.update_one({"id": job_id}, {"$set": updates})
+        if not res:
+            return None
+        return ProcessingJob(**res)
+
+    async def mark_completed(
+        self,
+        job_id: str,
+        processed_page_count: Optional[int] = None,
+        execution_time_ms: Optional[float] = None,
+    ) -> Optional[ProcessingJob]:
         """Mark job as successfully completed."""
         now = datetime.now(timezone.utc).isoformat()
+        updates: dict = {
+            "stage": JobStage.COMPLETED.value,
+            "status": JobStatus.COMPLETED.value,
+            "completed_at": now,
+            "updated_at": now,
+        }
+        if processed_page_count is not None:
+            updates["processed_page_count"] = processed_page_count
+        if execution_time_ms is not None:
+            updates["execution_time_ms"] = execution_time_ms
+
         res = await self.update_one(
             {"id": job_id},
-            {
-                "$set": {
-                    "stage": JobStage.COMPLETED.value,
-                    "status": JobStatus.COMPLETED.value,
-                    "completed_at": now,
-                    "updated_at": now,
-                }
-            },
+            {"$set": updates},
         )
         if not res:
             return None

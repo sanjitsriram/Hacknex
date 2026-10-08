@@ -92,3 +92,154 @@ export async function uploadDocumentToApi(
 
   return await res.json();
 }
+
+export type RegionRecognitionResult = {
+  document_id: string;
+  region_id: string;
+  recognized_text: string;
+  confidence: number;
+  execution_time_ms: number;
+  model_identifier: string;
+  model_version: string;
+  bounding_box: { x: number; y: number; w: number; h: number };
+  candidate: {
+    text: string;
+    confidence?: number;
+    calibrated_score?: number;
+    provider_id: string;
+    model_version: string;
+  };
+  is_verified: boolean;
+};
+
+export async function recognizeRegionApi(
+  documentId: string,
+  regionId: string,
+  boundingBox?: { x: number; y: number; w: number; h: number },
+  pageIndex: number = 0
+): Promise<RegionRecognitionResult> {
+  const url = `${API_BASE}/documents/${documentId}/regions/${regionId}/recognize`;
+  const body = boundingBox ? { bounding_box: boundingBox, page_index: pageIndex } : { page_index: pageIndex };
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData?.error?.message || `Recognition failed (${res.status}): ${res.statusText}`;
+    throw new Error(message);
+  }
+
+  return await res.json();
+}
+
+export type DetectedDocumentRegion = {
+  id: string;
+  document_id: string;
+  page_index: number;
+  line: string;
+  original: string;
+  bounding_box: { x: number; y: number; w: number; h: number };
+  polygon?: number[][];
+  confidence?: number;
+  provider_id?: string;
+  model_version?: string;
+  candidates_detail?: Array<{
+    text: string;
+    confidence?: number;
+    calibrated_score?: number;
+    provider_id: string;
+    model_version: string;
+  }>;
+  status: string;
+  reviewer_decision?: string;
+  is_illegible: boolean;
+};
+
+export type DocumentRegionsListResult = {
+  document_id: string;
+  total: number;
+  items: DetectedDocumentRegion[];
+};
+
+export type JobResponseData = {
+  job_id: string;
+  document_id: string;
+  status: string;
+  stage: string;
+  provider: string;
+  model: string;
+  created_at: string;
+};
+
+export type JobStatusDetail = {
+  job_id: string;
+  document_id: string;
+  status: string;
+  stage: string;
+  provider: string;
+  model: string;
+  provider_job_id?: string;
+  processed_page_count: number;
+  execution_time_ms?: number;
+  error?: string;
+  retry_count: number;
+  started_at?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+};
+
+export async function scheduleDocumentRecognitionApi(
+  documentId: string,
+  pipelineVersion: string = 'v1.0.0'
+): Promise<JobResponseData> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/recognition`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pipeline_version: pipelineVersion }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData?.error?.message || `Recognition schedule failed (${res.status}): ${res.statusText}`;
+    throw new Error(message);
+  }
+
+  return await res.json();
+}
+
+export async function getJobStatusApi(jobId: string): Promise<JobStatusDetail> {
+  const res = await fetch(`${API_BASE}/jobs/${jobId}`);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData?.error?.message || `Failed to fetch job status (${res.status}): ${res.statusText}`;
+    throw new Error(message);
+  }
+  return await res.json();
+}
+
+export async function fetchDocumentRegionsApi(documentId: string): Promise<DetectedDocumentRegion[]> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/regions`);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData?.error?.message || `Failed to fetch document regions (${res.status}): ${res.statusText}`;
+    throw new Error(message);
+  }
+  const data: DocumentRegionsListResult = await res.json();
+  return data.items || [];
+}
+
+export async function fetchDocumentJobsApi(documentId: string): Promise<JobStatusDetail[]> {
+  const res = await fetch(`${API_BASE}/documents/${documentId}/jobs`);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData?.error?.message || `Failed to fetch document jobs (${res.status}): ${res.statusText}`;
+    throw new Error(message);
+  }
+  return await res.json();
+}
+

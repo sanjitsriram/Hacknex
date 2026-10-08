@@ -1,0 +1,85 @@
+{
+  "benchmark_id": "eval-ppocrv6-cloud-iam-v1",
+  "timestamp": "2026-10-08T18:25:29Z",
+  "dataset_name": "IAM-Handwriting-Line-Test",
+  "dataset_sha256": "0f7270051136d5d2708ef1d2a0d276c7809847f0aada0799a572ea8a4d118f2d",
+  "provider": "paddleocr-cloud",
+  "model_identifier": "PP-OCRv6",
+  "evaluated_samples": 5,
+  "total_characters_evaluated": 416,
+  "total_words_evaluated": 92,
+  "metrics": {
+    "cer": 0.0889,
+    "wer": 0.4891,
+    "exact_match_rate_pct": 0.0,
+    "exact_matches_count": 0
+  },
+  "latencies": {
+    "mean_sec": 6.166,
+    "median_p50_sec": 6.068,
+    "min_sec": 5.569,
+    "max_sec": 6.878
+  },
+  "sample_evaluations": [
+    {
+      "id": "iam-test-00",
+      "filename": "sample_00.png",
+      "style_category": "punctuation_and_complex",
+      "ground_truth": "assuredness \" Bella Bella Marie \" ( Parlophone ) , a lively song that changes tempo mid-way .",
+      "prediction": "assuredness \"Bella Bella Harie\" (Parlophone), a lively song that changes tempo mid-way.",
+      "confidence": 0.9627,
+      "latency_sec": 6.878,
+      "cer": 0.0753,
+      "wer": 0.5556,
+      "exact_match": false
+    },
+    {
+      "id": "iam-test-01",
+      "filename": "sample_01.png",
+      "style_category": "punctuation_and_complex",
+      "ground_truth": "I don't think he will storm the charts with this one , but it 's a good start .",
+      "prediction": "don't thinu he will storm the charts with this one,'boat it's a good start.",
+      "confidence": 0.9754,
+      "latency_sec": 5.569,
+      "cer": 0.1139,
+      "wer": 0.4737,
+      "exact_match": false
+    },
+    {
+      "id": "iam-test-02",
+      "filename": "sample_02.png",
+      "style_category": "numbers_and_punctuation",
+      "ground_truth": "CHRIS CHARLES , 39 , who lives in Stockton-on-Tees , is an accountant .",
+      "prediction": "CHRIS CHARLES, 3g, whO lives in Stocuton-on - Tees, is an accounlant.",
+      "confidence": 0.9372,
+      "latency_sec": 6.335,
+      "cer": 0.1408,
+      "wer": 0.7143,
+      "exact_match": false
+    },
+    {
+      "id": "iam-test-03",
+      "filename": "sample_03.png",
+      "style_category": "punctuation_and_complex",
+      "ground_truth": "Become a success with a disc and hey presto ! You 're a star ... . Rolly sings with",
+      "prediction": "Become a success with a dise and hey presto! You're a star... Rolly sings with",
+      "confidence": 0.9823,
+      "latency_sec": 6.068,
+      "cer": 0.0723,
+      "wer": 0.4211,
+      "exact_match": false
+    },
+    {
+      "id": "iam-test-04",
+      "filename": "sample_04.png",
+      "style_category": "punctuation_and_complex",
+      "ground_truth": "Tolch , as he is known in Tin Pan Alley , likes songs with a month in the title . He wrote",
+      "prediction": "Tolch, as he is unown in Tin Pan Alley, lines songs with a month in the title. He wrote",
+      "confidence": 0.9886,
+      "latency_sec": 5.981,
+      "cer": 0.0556,
+      "wer": 0.3636,
+      "exact_match": false
+    }
+  ]
+}
