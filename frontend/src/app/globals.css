@@ -201,3 +201,26 @@
 .ocr-md table { border-collapse: collapse; margin: 1rem auto; width: 100%; }
 .ocr-md td, .ocr-md th { border: 1px solid #999; padding: 6px 10px; word-break: break-word; }
 .ocr-md img { max-width: 100%; height: auto; }
+
+.modern-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+}
+.modern-loader .loader-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #7152d1;
+  border-radius: 50%;
+  animation: modern-bounce 1.4s infinite ease-in-out both;
+}
+.modern-loader .loader-dot:nth-child(1) { animation-delay: -0.32s; }
+.modern-loader .loader-dot:nth-child(2) { animation-delay: -0.16s; }
+@keyframes modern-bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+

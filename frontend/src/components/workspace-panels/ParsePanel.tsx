@@ -26,7 +26,7 @@ export function ParsePanel({
         {/* PaddleOCR-VL Banner */}
         <div className="vl-action-banner" style={{ marginBottom: 12 }}>
           <div className="banner-info">
-            <h4><Sparkles size={14} /> Document Intelligence · PaddleOCR-VL-1.6 Cloud</h4>
+            <h4><Sparkles size={14} /> Document Intelligence · PaddleOCR-VL-1.6</h4>
             <p>
               {vlJobState?.running
                 ? `Processing document intelligence pipeline (${vlJobState.stage || 'layout_analysis'}... Status: ${vlJobState.status || 'running'}${typeof vlJobState.elapsedSeconds === 'number' ? ` · ${vlJobState.elapsedSeconds}s elapsed` : ''})`
@@ -41,51 +41,21 @@ export function ParsePanel({
             )}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {vlJobState?.running && (
-              <button type="button" className="button secondary small-button" style={{ minHeight: 38, borderColor: '#e57373', color: '#c62828' }} onClick={onCancelDocumentIntelligence} title="Abort currently running pipeline">
-                <X size={13} /><span>Cancel</span>
+            {vlJobState?.running ? (
+              <div className="modern-loader" title="Analyzing Document...">
+                <div className="loader-dot"></div>
+                <div className="loader-dot"></div>
+                <div className="loader-dot"></div>
+              </div>
+            ) : (
+              <button type="button" className="vl-run-btn" onClick={() => onRunDocumentIntelligence(false)}>
+                <Sparkles size={15} /><span>{hasParsingRun ? 'Re-run PaddleOCR-VL' : 'Run Document Intelligence — PaddleOCR-VL'}</span>
               </button>
             )}
-            <button type="button" className="vl-run-btn" disabled={vlJobState?.running} onClick={() => onRunDocumentIntelligence(false)}>
-              {vlJobState?.running ? (
-                <><RotateCw size={14} className="loading-spinner" /><span>Analyzing Document...</span></>
-              ) : (
-                <><Sparkles size={15} /><span>{hasParsingRun ? 'Re-run PaddleOCR-VL' : 'Run Document Intelligence — PaddleOCR-VL'}</span></>
-              )}
-            </button>
           </div>
         </div>
 
-        {/* PP-OCRv6 Cloud Banner */}
-        <div className="vl-action-banner" style={{ border: '1px solid #d0d7de', background: '#f6f8fa' }}>
-          <div className="banner-info">
-            <h4><ScanLine size={14} /> Text Recognition · PP-OCRv6 Cloud</h4>
-            <p>
-              {jobState?.running
-                ? `Running PP-OCRv6 line recognition (${jobState.stage || 'ocr'}... Status: ${jobState.status || 'running'})`
-                : 'Execute robust baseline OCR processing for line-level extraction and accuracy comparisons.'}
-            </p>
-            {jobState?.error && (
-              <p style={{ color: '#d32f2f', marginTop: 4, fontWeight: 500 }}>
-                {jobState.error}
-              </p>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {jobState?.running && (
-              <button type="button" className="button secondary small-button" style={{ minHeight: 38, borderColor: '#e57373', color: '#c62828' }} onClick={onCancelFullOcr} title="Abort currently running PP-OCRv6 pipeline">
-                <X size={13} /><span>Cancel</span>
-              </button>
-            )}
-            <button type="button" className="vl-run-btn" style={{ background: '#24292f' }} disabled={jobState?.running} onClick={() => onRunFullOcr(false)}>
-              {jobState?.running ? (
-                <><RotateCw size={14} className="loading-spinner" /><span>Running PP-OCRv6...</span></>
-              ) : (
-                <><ScanLine size={15} /><span>Run PP-OCRv6 Cloud</span></>
-              )}
-            </button>
-          </div>
-        </div>
+        {/* Removed PP-OCRv6 Banner per instruction */}
       </details>
 
       <div className="doc-subnav">
