@@ -195,12 +195,13 @@ export type JobStatusDetail = {
 
 export async function scheduleDocumentRecognitionApi(
   documentId: string,
-  pipelineVersion: string = 'v1.0.0'
+  pipelineVersion: string = 'v1.0.0',
+  force: boolean = false
 ): Promise<JobResponseData> {
   const res = await fetch(`${API_BASE}/documents/${documentId}/recognition`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pipeline_version: pipelineVersion }),
+    body: JSON.stringify({ pipeline_version: pipelineVersion, force }),
   });
 
   if (!res.ok) {
@@ -209,6 +210,19 @@ export async function scheduleDocumentRecognitionApi(
     throw new Error(message);
   }
 
+  return await res.json();
+}
+
+export async function cancelJobApi(jobId: string): Promise<JobStatusDetail> {
+  const res = await fetch(`${API_BASE}/jobs/${jobId}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData?.error?.message || `Failed to cancel job (${res.status}): ${res.statusText}`;
+    throw new Error(message);
+  }
   return await res.json();
 }
 
@@ -283,12 +297,13 @@ export type DocumentParsingRunResult = {
 
 export async function scheduleDocumentIntelligenceApi(
   documentId: string,
-  pipelineVersion: string = 'v1.0.0'
+  pipelineVersion: string = 'v1.0.0',
+  force: boolean = false
 ): Promise<JobResponseData> {
   const res = await fetch(`${API_BASE}/documents/${documentId}/document-intelligence`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pipeline_version: pipelineVersion }),
+    body: JSON.stringify({ pipeline_version: pipelineVersion, force }),
   });
 
   if (!res.ok) {

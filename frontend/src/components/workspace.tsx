@@ -2,12 +2,20 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { AlertTriangle, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Bell, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, Clock3, Cpu, FileText, FolderOpen, LayoutDashboard, ListFilter, Maximize2, Menu, Microscope, MoreHorizontal, Plus, RotateCw, ScanLine, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, UploadCloud, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { DocumentOutput } from './document-output';
+import { EvidenceTable } from './evidence-table';
+import { ParsePanel } from './workspace-panels/ParsePanel';
+import { ExtractPanel } from './workspace-panels/ExtractPanel';
+import { ReviewPanel } from './workspace-panels/ReviewPanel';
+import { ComparePanel } from './workspace-panels/ComparePanel';
 import { baseText, defaultPreferences, regions, samples, validateFile, parseSavedState, updateRegionText, type AuditEvent, type DocumentItem, type Preferences } from '@/lib/data';
 import {
   fetchDocumentsFromApi,
   uploadDocumentToApi,
   recognizeRegionApi,
   scheduleDocumentRecognitionApi,
+  cancelJobApi,
+  fetchDocumentJobsApi,
   getJobStatusApi,
   fetchDocumentRegionsApi,
   scheduleDocumentIntelligenceApi,
@@ -144,6 +152,8 @@ export const defaultDocRegions = [
   { id: 'r4', name: 'Text Line 4 (Sign-off / Date)', bbox: { x: 5, y: 42, w: 90, h: 10 }, page: 0, description: 'Inspection sign-off and timestamp' },
 ];
 
+function formatConfidence(value?: number | null) { return value == null ? 'Not provided' : `${(value * 100).toFixed(1)}%`; }
+
 function download(name: string, content: string, type = 'text/plain') {
   const url = URL.createObjectURL(new Blob([content], { type }));
   const link = document.createElement('a'); link.href = url; link.download = name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -177,16 +187,17 @@ export default function Workspace() {
   const [recognizingRegion, setRecognizingRegion] = useState<string | null>(null);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [detectedRegionsByDoc, setDetectedRegionsByDoc] = useState<Record<string, DetectedDocumentRegion[]>>({});
-  const [jobState, setJobState] = useState<Record<string, { running: boolean; jobId?: string; status?: string; stage?: string; error?: string }>>({});
+  const [jobState, setJobState] = useState<Record<string, { running: boolean; jobId?: string; status?: string; stage?: string; error?: string; elapsedSeconds?: number }>>({});
   const [vlResults, setVlResults] = useState<Record<string, DocumentParsingRunResult>>({});
-  const [vlJobState, setVlJobState] = useState<Record<string, { running: boolean; jobId?: string; status?: string; stage?: string; error?: string }>>({});
+  const [vlJobState, setVlJobState] = useState<Record<string, { running: boolean; jobId?: string; status?: string; stage?: string; error?: string; elapsedSeconds?: number }>>({});
   const [fusionResults, setFusionResults] = useState<Record<string, FusionRunDetail>>({ 'demo-1': demoFusionRun });
   const [fusionJobState, setFusionJobState] = useState<Record<string, { running: boolean; runId?: string; status?: string; error?: string }>>({});
   const [recoveringRegions, setRecoveringRegions] = useState<Record<string, boolean>>({});
   const [overlayMode, setOverlayMode] = useState<'both' | 'lines' | 'layout'>('both');
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
-  const [tab, setTab] = useState<'Transcription' | 'Comparison' | 'Activity'>('Transcription');
+  const [tab, setTab] = useState<'Parse' | 'Extract' | 'Review' | 'Compare'>('Parse');
   const [zoom, setZoom] = useState(100);
+  const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
   const [rotation, setRotation] = useState(0);
   const [editor, setEditor] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -419,26 +430,33 @@ export default function Workspace() {
     return () => { active = false; };
   }, [doc?.id, demo]);
 
-  const runFullDocumentOcr = async (documentId: string) => {
-    setJobState(prev => ({ ...prev, [documentId]: { running: true, status: 'submitting', stage: 'ingestion' } }));
-    notice('Submitting document to PP-OCRv6 cloud pipeline...');
+  const runFullDocumentOcr = async (documentId: string, force: boolean = false) => {
+    setJobState(prev => ({ ...prev, [documentId]: { running: true, status: 'submitting', stage: 'ingestion', elapsedSeconds: 0 } }));
+    notice(force ? 'Force restarting PP-OCRv6 cloud pipeline...' : 'Submitting document to PP-OCRv6 cloud pipeline...');
     try {
-      const scheduleRes = await scheduleDocumentRecognitionApi(documentId);
+      const scheduleRes = await scheduleDocumentRecognitionApi(documentId, 'v1.0.0', force);
       const jobId = scheduleRes.job_id;
       setJobState(prev => ({
         ...prev,
-        [documentId]: { running: true, jobId, status: scheduleRes.status, stage: scheduleRes.stage },
+        [documentId]: { running: true, jobId, status: scheduleRes.status, stage: scheduleRes.stage, elapsedSeconds: 0 },
       }));
       record('PP-OCRv6 job scheduled', `Cloud Job ID: ${jobId} (${scheduleRes.status})`);
 
       const startTime = Date.now();
       const pollInterval = 1500;
-      const maxDuration = 300000;
+      const maxDuration = 120000;
 
       const poll = async () => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
         if (Date.now() - startTime > maxDuration) {
-          setJobState(prev => ({ ...prev, [documentId]: { running: false, error: 'Job timed out after 5 minutes' } }));
-          notice('PP-OCRv6 job timed out.');
+          try {
+            await cancelJobApi(jobId);
+          } catch {}
+          setJobState(prev => ({
+            ...prev,
+            [documentId]: { running: false, error: 'PP-OCRv6 reached 120s limit. Worker was automatically recovered. Click Force Restart to retry.' },
+          }));
+          notice('PP-OCRv6 job timed out after 120s.');
           return;
         }
 
@@ -453,6 +471,7 @@ export default function Workspace() {
               status: statusRes.status,
               stage: statusRes.stage,
               error: statusRes.error,
+              elapsedSeconds: elapsed,
             },
           }));
 
@@ -468,10 +487,10 @@ export default function Workspace() {
               `${detected.length} text lines detected in ${sec}s`
             );
             notice(`PP-OCRv6 complete: ${detected.length} regions detected (${sec}s).`);
-          } else if (statusRes.status === 'failed') {
-            const err = statusRes.error || 'Cloud execution failed';
-            record('PP-OCRv6 job failed', err);
-            notice(`PP-OCRv6 failed: ${err}`);
+          } else if (['failed', 'timed_out', 'cancelled'].includes(statusRes.status)) {
+            const err = statusRes.error || `Execution ${statusRes.status}`;
+            record(`PP-OCRv6 job ${statusRes.status}`, err);
+            notice(`PP-OCRv6 ${statusRes.status}: ${err}`);
           } else {
             setTimeout(poll, pollInterval);
           }
@@ -489,26 +508,50 @@ export default function Workspace() {
     }
   };
 
-  const runDocumentIntelligence = async (documentId: string) => {
-    setVlJobState(prev => ({ ...prev, [documentId]: { running: true, status: 'submitting', stage: 'layout_analysis' } }));
-    notice('Submitting document to PaddleOCR-VL-1.6 document intelligence pipeline...');
+  const cancelFullDocumentOcr = async (documentId: string) => {
+    const current = jobState[documentId];
+    if (current?.jobId) {
+      try {
+        await cancelJobApi(current.jobId);
+      } catch (err) {
+        console.warn('Cancel API error:', err);
+      }
+    }
+    setJobState(prev => ({
+      ...prev,
+      [documentId]: { running: false, status: 'cancelled', error: 'Cancelled by user' },
+    }));
+    record('PP-OCRv6 job cancelled', `Aborted job for document ${documentId}`);
+    notice('PP-OCRv6 job cancelled.');
+  };
+
+  const runDocumentIntelligence = async (documentId: string, force: boolean = false) => {
+    setVlJobState(prev => ({ ...prev, [documentId]: { running: true, status: 'submitting', stage: 'layout_analysis', elapsedSeconds: 0 } }));
+    notice(force ? 'Force restarting PaddleOCR-VL pipeline...' : 'Submitting document to PaddleOCR-VL-1.6 document intelligence pipeline...');
     try {
-      const scheduleRes = await scheduleDocumentIntelligenceApi(documentId);
+      const scheduleRes = await scheduleDocumentIntelligenceApi(documentId, 'v1.0.0', force);
       const jobId = scheduleRes.job_id;
       setVlJobState(prev => ({
         ...prev,
-        [documentId]: { running: true, jobId, status: scheduleRes.status, stage: scheduleRes.stage },
+        [documentId]: { running: true, jobId, status: scheduleRes.status, stage: scheduleRes.stage, elapsedSeconds: 0 },
       }));
       record('PaddleOCR-VL-1.6 job scheduled', `Document Intelligence Job ID: ${jobId} (${scheduleRes.status})`);
 
       const startTime = Date.now();
       const pollInterval = 1500;
-      const maxDuration = 300000;
+      const maxDuration = 120000;
 
       const poll = async () => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
         if (Date.now() - startTime > maxDuration) {
-          setVlJobState(prev => ({ ...prev, [documentId]: { running: false, error: 'Document intelligence job timed out after 5 minutes' } }));
-          notice('PaddleOCR-VL job timed out.');
+          try {
+            await cancelJobApi(jobId);
+          } catch {}
+          setVlJobState(prev => ({
+            ...prev,
+            [documentId]: { running: false, error: 'Document intelligence reached 120s limit. Click Force Restart to retry.' },
+          }));
+          notice('PaddleOCR-VL job timed out after 120s.');
           return;
         }
 
@@ -523,6 +566,7 @@ export default function Workspace() {
               status: statusRes.status,
               stage: statusRes.stage,
               error: statusRes.error,
+              elapsedSeconds: elapsed,
             },
           }));
 
@@ -540,10 +584,10 @@ export default function Workspace() {
               );
               notice(`PaddleOCR-VL complete: ${parsed.total_blocks} layout blocks parsed in ${sec}s.`);
             }
-          } else if (statusRes.status === 'failed') {
-            const err = statusRes.error || 'Cloud execution failed';
-            record('PaddleOCR-VL job failed', err);
-            notice(`PaddleOCR-VL failed: ${err}`);
+          } else if (['failed', 'timed_out', 'cancelled'].includes(statusRes.status)) {
+            const err = statusRes.error || `Execution ${statusRes.status}`;
+            record(`PaddleOCR-VL job ${statusRes.status}`, err);
+            notice(`PaddleOCR-VL ${statusRes.status}: ${err}`);
           } else {
             setTimeout(poll, pollInterval);
           }
@@ -559,6 +603,23 @@ export default function Workspace() {
       setVlJobState(prev => ({ ...prev, [documentId]: { running: false, error: msg } }));
       notice(`Document intelligence schedule error: ${msg}`);
     }
+  };
+
+  const cancelDocumentIntelligence = async (documentId: string) => {
+    const current = vlJobState[documentId];
+    if (current?.jobId) {
+      try {
+        await cancelJobApi(current.jobId);
+      } catch (err) {
+        console.warn('Cancel API error:', err);
+      }
+    }
+    setVlJobState(prev => ({
+      ...prev,
+      [documentId]: { running: false, status: 'cancelled', error: 'Cancelled by user' },
+    }));
+    record('PaddleOCR-VL job cancelled', `Aborted job for document ${documentId}`);
+    notice('PaddleOCR-VL job cancelled.');
   };
 
   const runEvidenceFusion = async (documentId: string) => {
@@ -770,7 +831,6 @@ export default function Workspace() {
     {mobileNav && <button className="nav-backdrop" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
     <aside id="workspace-sidebar" className={`sidebar ${mobileNav ? 'open' : ''}`}>
       <a href="#" className="brand" onClick={e => { e.preventDefault(); navigate('Review workspace'); }}><span className="brand-mark"><ScanLine size={23} /></span>hacknex<span className="brand-dot">.</span></a>
-      <div className="workspace-label"><span className="workspace-avatar">H</span><div>HACKNEX workspace<small>Personal workspace</small></div></div>
       <div className="nav-caption">WORKSPACE</div>
       <nav aria-label="Main navigation"><button className="nav-item active" aria-current="page" onClick={() => navigate('Review workspace')}><ScanLine size={18} />Review workspace<span className="nav-count">{docs.length}</span></button></nav>
       <div className="sidebar-note"><div className="note-icon"><ShieldCheck size={21} /></div><strong>Evidence before certainty.</strong><p>Keep the original. Question the ambiguous. Review with confidence.</p><button onClick={() => setModal('help')}>Our review principles <ArrowUpRight size={14} /></button></div>
@@ -789,17 +849,11 @@ export default function Workspace() {
         </>}
         {view === 'Documents' && <><div className="page-heading"><div><div className="eyebrow">DOCUMENT LIBRARY</div><h1>Every source. One place<span>.</span></h1><p>Organize originals and pick up your next review.</p></div><button className="button primary" onClick={() => setModal('upload')}><Plus size={18} />New document</button></div><div className="library-toolbar"><label className="search-field"><Search size={18} /><input placeholder="Search documents or document types" value={query} onChange={e => setQuery(e.target.value)} aria-label="Search documents" />{query && <button aria-label="Clear search" onClick={() => setQuery('')}><X size={16} /></button>}</label><label className="select-wrap"><ListFilter size={16} /><select aria-label="Filter by status" value={filter} onChange={e => setFilter(e.target.value)}><option>All statuses</option><option>Needs review</option><option>Reviewed</option><option>Ready for backend</option></select></label><button className="button secondary" onClick={() => setSortAsc(v => !v)}>{sortAsc ? 'Name A–Z' : 'Newest first'}<ChevronDown size={15} /></button></div><DocumentTable docs={shownDocs} open={openDoc} /><p className="footnote">{shownDocs.length} of {docs.length} documents · Documents are immutably stored in MongoDB Atlas GridFS and persist across browser reloads.</p></>}
         {view === 'Review workspace' && (docs.length > 0 ? <><div className="review-heading"><div><span className="eyebrow">EVIDENCE REVIEW</span><h1>{doc.name}</h1><div className="document-meta"><Pill status={doc.status} /><span>{doc.language}</span><span>{doc.pages} {doc.pages === 1 ? 'page' : 'pages'}</span><span>{doc.size}</span>{doc.sha256 && <span title={`SHA-256: ${doc.sha256}`}>SHA: {doc.sha256.slice(0, 8)}...</span>}</div></div><div className="heading-actions"><button className="button primary" onClick={() => setModal('upload')}><UploadCloud size={16} />Upload document</button>{doc.url && <a href={`${doc.url}?download=true`} className="button secondary" download={doc.name}><ArrowDownToLine size={16} />Download original</a>}</div></div>
-          <div className="review-grid"><section className="source-pane"><div className="pane-header"><div><FileText size={16} /><strong>Original document</strong></div><span>READ ONLY</span></div><div className="source-controls"><div className="segmented"><IconButton label="Zoom out" disabled={zoom <= 60} onClick={() => setZoom(z => z - 20)}><ZoomOut size={16} /></IconButton><span>{zoom}%</span><IconButton label="Zoom in" disabled={zoom >= 180} onClick={() => setZoom(z => z + 20)}><ZoomIn size={16} /></IconButton></div><div className="toolbar-group"><IconButton label="Rotate source" onClick={() => setRotation(r => (r + 90) % 360)}><RotateCw size={16} /></IconButton><IconButton label="Reset source view" onClick={() => { setZoom(100); setRotation(0); }}><Maximize2 size={16} /></IconButton></div></div>
-          {!demo && (
-            <div className="overlay-toggle-bar">
-              <span>Overlays:</span>
-              <button type="button" className={`overlay-toggle-btn ${overlayMode === 'both' ? 'active' : ''}`} onClick={() => setOverlayMode('both')}>All (PP-OCR + VL)</button>
-              <button type="button" className={`overlay-toggle-btn ${overlayMode === 'lines' ? 'active' : ''}`} onClick={() => setOverlayMode('lines')}>PP-OCR Lines</button>
-              <button type="button" className={`overlay-toggle-btn ${overlayMode === 'layout' ? 'active' : ''}`} onClick={() => setOverlayMode('layout')}>PaddleOCR-VL Blocks</button>
-            </div>
-          )}
-          <div className="source-scroll">{demo || doc.url ? <div className="source-image-wrap" style={{ width: `${zoom}%`, transform: `rotate(${rotation}deg)` }}>{doc.mime === 'application/pdf' ? <object data={doc.url} type="application/pdf" aria-label={`Original PDF: ${doc.name}`} className="pdf-preview"><a href={doc.url} target="_blank" rel="noreferrer">Open PDF preview</a></object> : <img src={demo ? '/sample-note.svg' : doc.url} alt={demo ? 'Illustrative handwritten site inspection note with three review regions' : `Original upload: ${doc.name}`} />}{demo && preferences.highlight && regions.map((r, i) => <button key={r.id} aria-label={`Inspect region ${i + 1}: ${r.original}`} className={`region-overlay ${activeRegion === r.id ? 'selected' : ''} ${r.id in corrections ? 'resolved' : ''}`} style={{ left: `${r.x}%`, top: `${r.y}%`, width: `${r.w}%`, height: `${r.h}%` }} onClick={() => { setActiveRegion(r.id); setTab('Transcription'); }}><span>{r.id in corrections ? <Check size={10} /> : i + 1}</span></button>)}{!demo && preferences.highlight && (overlayMode === 'both' || overlayMode === 'lines') && ((detectedRegionsByDoc[doc.id]?.length ? detectedRegionsByDoc[doc.id] : defaultDocRegions).map((r: any, i: number) => { const isDetected = 'bounding_box' in r; const regId = r.id; const isDone = Boolean(corrections[`${doc.id}:${regId}`]); const hasOcr = Boolean(trocrResults[`${doc.id}:${regId}`]); const isIllegible = Boolean(r.is_illegible); const box = isDetected ? r.bounding_box : r.bbox; return <button key={regId} aria-label={`Inspect region ${i + 1}: ${r.name || r.original || regId}`} className={`region-overlay ${activeRegion === regId ? 'selected' : ''} ${isDone ? 'resolved' : isIllegible ? 'illegible-overlay' : ''}`} style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }} onClick={() => { setActiveRegion(regId); setTab('Transcription'); }}><span>{isDone ? <Check size={10} /> : hasOcr ? <Sparkles size={10} /> : i + 1}</span></button>; }))}{!demo && preferences.highlight && (overlayMode === 'both' || overlayMode === 'layout') && (vlResults[doc.id]?.pages?.[0]?.blocks || []).map((b) => { const isFocused = activeBlockId === b.block_id; return <button key={`vl-${b.block_id}`} type="button" aria-label={`Layout block ${b.reading_order}: ${b.block_type}`} className={`layout-block-overlay block-type-${b.block_type} ${isFocused ? 'selected' : ''}`} style={{ left: `${b.bounding_box.x}%`, top: `${b.bounding_box.y}%`, width: `${b.bounding_box.w}%`, height: `${b.bounding_box.h}%` }} onClick={() => { setActiveBlockId(b.block_id); setTab('Transcription'); }}><span className="block-order-badge">#{b.reading_order} {b.block_type === 'paragraph_title' ? 'Title' : b.block_type === 'table' ? 'Table' : ''}</span></button>; })}</div> : <div className="empty-state"><FileText size={40} /><h3>Source not included</h3><p>This library entry illustrates a document awaiting recognition. Open the field-notes sample to try the complete review.</p><button className="button secondary" onClick={() => openDoc(docs.find(d => d.id === 'demo-1')!)}>Open interactive sample</button></div>}</div><footer className="source-footer"><ShieldCheck size={14} />Original preserved in GridFS{demo && <span><span className="legend-dot" /> Needs review <span className="legend-dot green-dot" /> Reviewed</span>}</footer></section>
-          <section className="transcript-pane"><div className="review-tabs" role="tablist" aria-label="Review panels">{(['Transcription', 'Comparison', 'Activity'] as const).map(t => <button key={t} role="tab" id={`tab-${t}`} tabIndex={tab === t ? 0 : -1} onKeyDown={e => { const panels = ['Transcription', 'Comparison', 'Activity'] as const; const index = panels.indexOf(t); const next = e.key === 'ArrowRight' ? (index + 1) % 3 : e.key === 'ArrowLeft' ? (index + 2) % 3 : e.key === 'Home' ? 0 : e.key === 'End' ? 2 : -1; if (next >= 0) { e.preventDefault(); setTab(panels[next]); document.getElementById(`tab-${panels[next]}`)?.focus(); } }} aria-selected={tab === t} aria-controls="review-panel" onClick={() => setTab(t)}>{t}{t === 'Transcription' && demo && <span>{pending.length}</span>}</button>)}</div><div id="review-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={0} className="panel-content">
+          <div className="source-quality" role="status">{imageSize && doc.mime !== 'application/pdf' && <span>Original: {imageSize.width} × {imageSize.height} px. {imageSize.width < 1200 ? 'Low-resolution source: upload a sharper scan for more reliable recognition.' : 'Zoom to inspect the original pixels.'}</span>}{doc.url && <a href={doc.url} target="_blank" rel="noreferrer">Open full-resolution original ↗</a>}</div>
+          <div className="review-grid"><section className="source-pane"><div className="pane-header"><div><FileText size={16} /><strong>Original document</strong></div><span>READ ONLY</span></div><div className="source-controls"><div className="segmented"><IconButton label="Zoom out" disabled={zoom <= 60} onClick={() => setZoom(z => z - 20)}><ZoomOut size={16} /></IconButton><span>{zoom}%</span><IconButton label="Zoom in" disabled={zoom >= 400} onClick={() => setZoom(z => z + 20)}><ZoomIn size={16} /></IconButton></div><div className="toolbar-group"><IconButton label="Rotate source" onClick={() => setRotation(r => (r + 90) % 360)}><RotateCw size={16} /></IconButton><IconButton label="Reset source view" onClick={() => { setZoom(100); setRotation(0); }}><Maximize2 size={16} /></IconButton></div></div>
+
+          <div className="source-scroll">{demo || doc.url ? <div className="source-image-wrap" style={{ width: `${zoom}%`, maxWidth: 'none', transform: `rotate(${rotation}deg)` }}>{doc.mime === 'application/pdf' ? <object data={doc.url} type="application/pdf" aria-label={`Original PDF: ${doc.name}`} className="pdf-preview"><a href={doc.url} target="_blank" rel="noreferrer">Open PDF preview</a></object> : <img onLoad={event => setImageSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} src={demo ? '/sample-note.svg' : doc.url} alt={demo ? 'Illustrative handwritten site inspection note with three review regions' : `Original upload: ${doc.name}`} />}{demo && preferences.highlight && regions.map((r, i) => <button key={r.id} aria-label={`Inspect region ${i + 1}: ${r.original}`} className={`region-overlay ${activeRegion === r.id ? 'selected' : ''} ${r.id in corrections ? 'resolved' : ''}`} style={{ left: `${r.x}%`, top: `${r.y}%`, width: `${r.w}%`, height: `${r.h}%` }} onClick={() => { setActiveRegion(r.id); setTab('Transcription'); }}><span>{r.id in corrections ? <Check size={10} /> : i + 1}</span></button>)}{!demo && preferences.highlight && (overlayMode === 'both' || overlayMode === 'lines') && ((detectedRegionsByDoc[doc.id]?.length ? detectedRegionsByDoc[doc.id] : []).map((r: any, i: number) => { const isDetected = 'bounding_box' in r; const regId = r.id; const isDone = Boolean(corrections[`${doc.id}:${regId}`]); const hasOcr = Boolean(trocrResults[`${doc.id}:${regId}`]); const isIllegible = Boolean(r.is_illegible); const box = isDetected ? r.bounding_box : r.bbox; return <button key={regId} aria-label={`Inspect region ${i + 1}: ${r.name || r.original || regId}`} className={`region-overlay ${activeRegion === regId ? 'selected' : ''} ${isDone ? 'resolved' : isIllegible ? 'illegible-overlay' : ''}`} style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }} onClick={() => { setActiveRegion(regId); setTab('Transcription'); }}><span>{isDone ? <Check size={10} /> : hasOcr ? <Sparkles size={10} /> : i + 1}</span></button>; }))}{!demo && preferences.highlight && (overlayMode === 'both' || overlayMode === 'layout') && (vlResults[doc.id]?.pages?.[0]?.blocks || []).map((b) => { const isFocused = activeBlockId === b.block_id; return <button key={`vl-${b.block_id}`} type="button" aria-label={`Layout block ${b.reading_order}: ${b.block_type}`} className={`layout-block-overlay block-type-${b.block_type} ${isFocused ? 'selected' : ''}`} style={{ left: `${b.bounding_box.x}%`, top: `${b.bounding_box.y}%`, width: `${b.bounding_box.w}%`, height: `${b.bounding_box.h}%` }} onClick={() => { setActiveBlockId(b.block_id); setTab('Transcription'); }}><span className="block-order-badge">#{b.reading_order} {b.block_type === 'paragraph_title' ? 'Title' : b.block_type === 'table' ? 'Table' : ''}</span></button>; })}</div> : <div className="empty-state"><FileText size={40} /><h3>Source not included</h3><p>This library entry illustrates a document awaiting recognition. Open the field-notes sample to try the complete review.</p><button className="button secondary" onClick={() => openDoc(docs.find(d => d.id === 'demo-1')!)}>Open interactive sample</button></div>}</div><footer className="source-footer"><ShieldCheck size={14} />Original preserved in GridFS{demo && <span><span className="legend-dot" /> Needs review <span className="legend-dot green-dot" /> Reviewed</span>}</footer></section>
+          <section className="transcript-pane"><div className="review-tabs" role="tablist" aria-label="Review panels">{(['Parse', 'Extract', 'Review', 'Compare'] as const).map(t => <button key={t} role="tab" id={`tab-${t}`} tabIndex={tab === t ? 0 : -1} onKeyDown={e => { const panels = ['Parse', 'Extract', 'Review', 'Compare'] as const; const index = panels.indexOf(t); const next = e.key === 'ArrowRight' ? (index + 1) % 4 : e.key === 'ArrowLeft' ? (index + 3) % 4 : e.key === 'Home' ? 0 : e.key === 'End' ? 3 : -1; if (next >= 0) { e.preventDefault(); setTab(panels[next]); document.getElementById(`tab-${panels[next]}`)?.focus(); } }} aria-selected={tab === t} aria-controls="review-panel" onClick={() => setTab(t)}>{t}{t === 'Review' && demo && <span>{pending.length}</span>}</button>)}</div><div id="review-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={0} className="panel-content">
             {!demo ? (
               <RealDocumentOcrWorkspace
                 doc={doc}
@@ -814,13 +868,16 @@ export default function Workspace() {
                 onNotice={notice}
                 detectedRegions={detectedRegionsByDoc[doc.id] || []}
                 jobState={jobState[doc.id]}
-                onRunFullOcr={() => runFullDocumentOcr(doc.id)}
+                onRunFullOcr={(force) => runFullDocumentOcr(doc.id, force)}
+                onCancelFullOcr={() => cancelFullDocumentOcr(doc.id)}
                 parsingRun={vlResults[doc.id] || null}
                 vlJobState={vlJobState[doc.id]}
-                onRunDocumentIntelligence={() => runDocumentIntelligence(doc.id)}
+                onRunDocumentIntelligence={(force) => runDocumentIntelligence(doc.id, force)}
+                onCancelDocumentIntelligence={() => cancelDocumentIntelligence(doc.id)}
                 activeBlockId={activeBlockId}
                 setActiveBlockId={setActiveBlockId}
                 tab={tab}
+                setTab={setTab}
                 events={events}
                 fusionResult={fusionResults[doc.id] || null}
                 fusionJobState={fusionJobState[doc.id]}
@@ -828,7 +885,7 @@ export default function Workspace() {
                 recoveringRegions={recoveringRegions}
                 onRunTargetedRecovery={(regId) => runTargetedRecovery(doc.id, regId)}
               />
-            ) : tab === 'Transcription' ? <><div className="transcript-title"><div><span className="eyebrow">EDITABLE TRANSCRIPT</span><p>{pending.length ? `${pending.length} regions need your attention` : 'All flagged regions have a decision'}</p></div><button className="text-button" onClick={() => setEditor(v => !v)}>{editor ? 'Done editing' : 'Edit text'}</button></div>{editor ? <textarea className="full-editor" aria-label="Edit complete transcription" maxLength={100000} value={text} onChange={e => { setText(e.target.value); setDocs(items => items.map(d => d.id === 'demo-1' ? { ...d, status: 'Needs review' } : d)); }} onBlur={() => record('Transcript edited', 'Full text updated manually.')} /> : <div className="transcript-text">{text.split('\n').map((line, i) => <p key={i}>{line || '\u00a0'}</p>)}</div>}<div className="review-region-header"><h3>Review queue</h3><span>{Object.keys(corrections).length}/3 resolved</span></div><div className="region-list">{regions.map((r, i) => <div className={`region-card ${activeRegion === r.id ? 'focused' : ''}`} key={r.id}><button className="region-card-title" onClick={() => setActiveRegion(r.id)}><span className={`region-number ${r.id in corrections ? 'done' : ''}`}>{r.id in corrections ? <Check size={13} /> : i + 1}</span><strong>{corrections[r.id] ?? r.original}</strong><span>{r.id in corrections ? 'Reviewed' : 'Needs review'}</span><ChevronDown size={15} /></button>{activeRegion === r.id && <div className="region-detail"><p>{r.reason}</p><RegionDecision key={`${r.id}-${corrections[r.id] ?? ''}`} region={r} existing={corrections[r.id]} onResolve={value => resolve(r.id, value)} /></div>}</div>)}</div></> : tab === 'Comparison' ? <><div className="transcript-title"><div><span className="eyebrow">CANDIDATE READINGS</span><p>Illustrative disagreements, side by side.</p></div></div><div className="comparison-table"><table><thead><tr><th>Region</th><th>Line reading</th><th>Crop reading</th><th>Your decision</th></tr></thead><tbody>{regions.map(r => <tr key={r.id}><td>{r.id.toUpperCase()}</td><td>{r.alternatives[0]}</td><td className="amber-text">{r.alternatives[1]}</td><td>{corrections[r.id] ?? 'Unresolved'}</td></tr>)}</tbody></table></div><div className="info-box"><ShieldCheck size={20} /><p>Agreement is not proof of correctness. Compare candidates with the original pixels before recording a decision.</p></div></> : <><span className="eyebrow">REVIEW AUDIT</span>{events.length === 0 ? <div className="empty-state"><Clock3 size={32} /><h3>No review activity yet</h3><p>Resolve a region to start a record of your decisions.</p></div> : <ol className="timeline">{events.map(event => <li key={event.id}><span className="timeline-dot" /><strong>{event.action}</strong><p>{event.detail}</p><time>{new Date(event.time).toLocaleString()}</time></li>)}</ol>}</>}
+            ) : tab === 'Review' ? <><div className="transcript-title"><div><span className="eyebrow">EDITABLE TRANSCRIPT</span><p>{pending.length ? `${pending.length} regions need your attention` : 'All flagged regions have a decision'}</p></div><button className="text-button" onClick={() => setEditor(v => !v)}>{editor ? 'Done editing' : 'Edit text'}</button></div>{editor ? <textarea className="full-editor" aria-label="Edit complete transcription" maxLength={100000} value={text} onChange={e => { setText(e.target.value); setDocs(items => items.map(d => d.id === 'demo-1' ? { ...d, status: 'Needs review' } : d)); }} onBlur={() => record('Transcript edited', 'Full text updated manually.')} /> : <div className="transcript-text">{text.split('\n').map((line, i) => <p key={i}>{line || '\u00a0'}</p>)}</div>}<div className="review-region-header"><h3>Review queue</h3><span>{Object.keys(corrections).length}/3 resolved</span></div><div className="region-list">{regions.map((r, i) => <div className={`region-card ${activeRegion === r.id ? 'focused' : ''}`} key={r.id}><button className="region-card-title" onClick={() => setActiveRegion(r.id)}><span className={`region-number ${r.id in corrections ? 'done' : ''}`}>{r.id in corrections ? <Check size={13} /> : i + 1}</span><strong>{corrections[r.id] ?? r.original}</strong><span>{r.id in corrections ? 'Reviewed' : 'Needs review'}</span><ChevronDown size={15} /></button>{activeRegion === r.id && <div className="region-detail"><p>{r.reason}</p><RegionDecision key={`${r.id}-${corrections[r.id] ?? ''}`} region={r} existing={corrections[r.id]} onResolve={value => resolve(r.id, value)} /></div>}</div>)}</div></> : tab === 'Compare' ? <><div className="transcript-title"><div><span className="eyebrow">CANDIDATE READINGS</span><p>Illustrative disagreements, side by side.</p></div></div><div className="comparison-table"><table><thead><tr><th>Region</th><th>Line reading</th><th>Crop reading</th><th>Your decision</th></tr></thead><tbody>{regions.map(r => <tr key={r.id}><td>{r.id.toUpperCase()}</td><td>{r.alternatives[0]}</td><td className="amber-text">{r.alternatives[1]}</td><td>{corrections[r.id] ?? 'Unresolved'}</td></tr>)}</tbody></table></div><div className="info-box"><ShieldCheck size={20} /><p>Agreement is not proof of correctness. Compare candidates with the original pixels before recording a decision.</p></div></> : tab === 'Parse' ? <div className="empty-state">Parse View</div> : <div className="empty-state">Extract View</div>}
           </div><div className="transcript-footer"><span className="local-indicator" />{storageError ? 'Session only' : 'Atlas GridFS sync active'}<span>MongoDB Atlas</span></div></section></div>
         </> : <section className="workspace-empty" aria-labelledby="empty-workspace-title"><span className="upload-circle"><UploadCloud size={30} /></span><div><span className="eyebrow">EVIDENCE REVIEW</span><h1 id="empty-workspace-title">Upload a document to begin.</h1><p>The original will be hashed, stored in GridFS, and opened here for evidence-linked recognition.</p></div><button className="button primary" onClick={() => setModal('upload')}><UploadCloud size={17} />Upload document</button></section>)}
         {view === 'Evaluation' && <Evaluation />}
@@ -836,7 +893,7 @@ export default function Workspace() {
         <footer className="page-footer"><span>HACKNEX <span className="footer-divider">/</span> Every word, accounted for.</span><span>HACKNEX 2026 · PS04</span></footer>
       </main>
     </div>
-    {toast && <div className="toast" role="status"><Check size={18} /><span>{toast}</span><button aria-label="Dismiss notification" onClick={() => setToast('')}><X size={16} /></button></div>}
+    {toast && <div className={`toast ${/fail|error|unavailable/i.test(toast) ? 'toast-error' : ''}`} role={/fail|error|unavailable/i.test(toast) ? 'alert' : 'status'}>{/fail|error|unavailable/i.test(toast) ? <AlertTriangle size={18} /> : <Check size={18} />}<span>{toast}</span><button aria-label="Dismiss notification" onClick={() => setToast('')}><X size={16} /></button></div>}
     {modal === 'upload' && <UploadModal close={() => setModal(null)} add={addDocument} language={preferences.language} uploading={uploading} />}
     {modal === 'help' && <Modal title="Review with evidence" close={() => setModal(null)}><div className="modal-body guidance"><p>Keep every automated reading tied to the original document.</p>{[{ title: '01 / Upload the source', body: 'The backend hashes the original and stores it in MongoDB GridFS.' }, { title: '02 / Run recognition', body: 'Independent model outputs remain separate and retain their provenance.' }, { title: '03 / Inspect uncertainty', body: 'Compare candidates with the source pixels. Mark unsupported text illegible.' }, { title: '04 / Record the decision', body: 'Human verification is stored separately from raw provider output.' }].map(item => <section key={item.title}><h3>{item.title}</h3><p>{item.body}</p></section>)}</div><div className="modal-footer"><button className="button primary" onClick={() => setModal('upload')}>Upload document <UploadCloud size={16} /></button></div></Modal>}
     {modal === 'notifications' && <Modal title="Workspace updates" close={() => setModal(null)}><div className="modal-body"><div className="notification-item"><Microscope size={22} /><div><h3>Evidence pipeline ready</h3><p>Upload a document, run recognition, then review model conflicts here.</p></div></div><div className="notification-item"><ShieldCheck size={22} /><div><h3>MongoDB GridFS active</h3><p>Uploaded originals persist in the backend with their SHA-256 evidence hash.</p></div></div></div></Modal>}
@@ -883,12 +940,15 @@ function RealDocumentOcrWorkspace({
   detectedRegions,
   jobState,
   onRunFullOcr,
+  onCancelFullOcr,
   parsingRun,
   vlJobState,
   onRunDocumentIntelligence,
+  onCancelDocumentIntelligence,
   activeBlockId,
   setActiveBlockId,
   tab,
+  setTab,
   events,
   fusionResult,
   fusionJobState,
@@ -907,14 +967,17 @@ function RealDocumentOcrWorkspace({
   onResolve: (docId: string, regId: string, value: string) => void;
   onNotice: (msg: string) => void;
   detectedRegions: DetectedDocumentRegion[];
-  jobState?: { running: boolean; jobId?: string; status?: string; stage?: string; error?: string };
-  onRunFullOcr: () => void;
+  jobState?: { running: boolean; jobId?: string; status?: string; stage?: string; error?: string; elapsedSeconds?: number };
+  onRunFullOcr: (force?: boolean) => void;
+  onCancelFullOcr: () => void;
   parsingRun: DocumentParsingRunResult | null;
-  vlJobState?: { running: boolean; jobId?: string; status?: string; stage?: string; error?: string };
-  onRunDocumentIntelligence: () => void;
+  vlJobState?: { running: boolean; jobId?: string; status?: string; stage?: string; error?: string; elapsedSeconds?: number };
+  onRunDocumentIntelligence: (force?: boolean) => void;
+  onCancelDocumentIntelligence: () => void;
   activeBlockId: string | null;
   setActiveBlockId: (id: string | null) => void;
-  tab: 'Transcription' | 'Comparison' | 'Activity';
+  tab: 'Parse' | 'Extract' | 'Review' | 'Compare';
+  setTab: (tab: 'Parse' | 'Extract' | 'Review' | 'Compare') => void;
   events: AuditEvent[];
   fusionResult: FusionRunDetail | null;
   fusionJobState?: { running: boolean; runId?: string; status?: string; error?: string };
@@ -923,7 +986,6 @@ function RealDocumentOcrWorkspace({
   onRunTargetedRecovery: (regionId: string) => void;
 }) {
   const [subTab, setSubTab] = useState<'layout' | 'markdown' | 'tables' | 'regions' | 'fusion'>('layout');
-  const [copiedMd, setCopiedMd] = useState(false);
 
   const hasDetected = detectedRegions.length > 0;
   const hasParsingRun = Boolean(parsingRun && parsingRun.pages && parsingRun.pages.length > 0);
@@ -959,952 +1021,90 @@ function RealDocumentOcrWorkspace({
     onResolve(doc.id, activeId, draftText.trim());
   };
 
-  const copyMarkdown = async () => {
-    if (!parsingRun?.markdown_text) return;
-    try {
-      await navigator.clipboard.writeText(parsingRun.markdown_text);
-      setCopiedMd(true);
-      onNotice('Prettified Markdown copied to clipboard');
-      setTimeout(() => setCopiedMd(false), 2500);
-    } catch {
-      onNotice('Failed to copy to clipboard');
-    }
-  };
+
 
   // If Tab is Activity
-  if (tab === 'Activity') {
+
+
+  // If Tab is Parse
+  if (!hasParsingRun && !vlJobState?.running) {
     return (
-      <div className="activity-panel">
-        <div className="transcript-title">
-          <div>
-            <span className="eyebrow">AUDIT & PROVENANCE TRAIL</span>
-            <p>Cryptographic hash chain & immutable review activity.</p>
-          </div>
-          <span className="pill green"><ShieldCheck size={12} /> Atlas GridFS Verified</span>
-        </div>
-        {events.length === 0 ? (
-          <div className="empty-state">
-            <Clock3 size={32} />
-            <h3>No review activity yet</h3>
-            <p>Run document intelligence or verify a text region to build an audit record.</p>
-          </div>
-        ) : (
-          <ol className="timeline">
-            {events.map(event => (
-              <li key={event.id}>
-                <span className="timeline-dot" />
-                <strong>{event.action}</strong>
-                <p>{event.detail}</p>
-                <time>{new Date(event.time).toLocaleString()}</time>
-              </li>
-            ))}
-          </ol>
-        )}
-      </div>
-    );
-  }
-
-  // If Tab is Comparison (3-Model Comparison View)
-  if (tab === 'Comparison') {
-    return (
-      <div className="comparison-panel">
-        <div className="transcript-title">
-          <div>
-            <span className="eyebrow">MULTI-MODEL CANDIDATE PROVENANCE</span>
-            <p>3 independent models evaluated against the same document pixels.</p>
-          </div>
-          <span className="pill green"><Cpu size={12} /> Tri-Model Stack</span>
-        </div>
-
-        <div className="info-box" style={{ marginBottom: 14 }}>
-          <ShieldCheck size={20} />
-          <p>
-            <strong>Evidence-First Invariant:</strong> Raw PP-OCRv6 line detection, TrOCR Base crop recognition, and PaddleOCR-VL-1.6 layout proposals remain isolated in distinct provenance layers. Human edits never overwrite raw model outputs.
-          </p>
-        </div>
-
-        <div className="comparison-table">
-          <table className="tri-model-table">
-            <thead>
-              <tr>
-                <th style={{ width: '12%' }}>Target</th>
-                <th style={{ width: '28%' }}>Model 1: PP-OCRv6 Cloud (Line)</th>
-                <th style={{ width: '28%' }}>Model 2: TrOCR Base Local (Crop)</th>
-                <th style={{ width: '22%' }}>Model 3: PaddleOCR-VL (Layout)</th>
-                <th style={{ width: '10%' }}>Verified</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(hasDetected ? detectedRegions : defaultDocRegions).map((reg: any, idx: number) => {
-                const regId = reg.id;
-                const key = `${doc.id}:${regId}`;
-                const trocr = trocrResults[key];
-                const confirmed = corrections[key];
-                const ppText = reg.original || reg.line || '';
-                const vlBlock = layoutBlocks[idx] || null;
-
-                return (
-                  <tr key={regId}>
-                    <td>
-                      <strong>#{idx + 1}</strong>
-                      <small style={{ color: '#7a8c75', display: 'block' }}>{reg.name || regId.toUpperCase()}</small>
-                    </td>
-                    <td className="model-cell">
-                      {ppText ? (
-                        <>
-                          <span>"{ppText}"</span>
-                          <small>Conf: {((reg.confidence ?? 0.85) * 100).toFixed(1)}% · PP-OCRv6</small>
-                        </>
-                      ) : (
-                        <span style={{ color: '#9ba895' }}>Awaiting PP-OCRv6</span>
-                      )}
-                    </td>
-                    <td className="model-cell">
-                      {trocr ? (
-                        <>
-                          <span style={{ color: '#1f4534', fontWeight: 500 }}>"{trocr.recognized_text}"</span>
-                          <small>Conf: {(trocr.confidence * 100).toFixed(1)}% · {trocr.execution_time_ms.toFixed(0)}ms</small>
-                        </>
-                      ) : (
-                        <span style={{ color: '#9ba895' }}>Not evaluated</span>
-                      )}
-                    </td>
-                    <td className="model-cell">
-                      {vlBlock ? (
-                        <>
-                          <span>"{vlBlock.content.slice(0, 40)}{vlBlock.content.length > 40 ? '...' : ''}"</span>
-                          <small>Order #{vlBlock.reading_order} · {vlBlock.block_type}</small>
-                        </>
-                      ) : (
-                        <span style={{ color: '#9ba895' }}>{hasParsingRun ? '—' : 'Awaiting PaddleOCR-VL'}</span>
-                      )}
-                    </td>
-                    <td>
-                      {confirmed ? (
-                        <span className="pill green" style={{ fontSize: 9 }}><Check size={10} /> Verified</span>
-                      ) : (
-                        <span className="pill amber" style={{ fontSize: 9 }}>Pending</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      <div className="welcome-actions" style={{ padding: '80px 40px', textAlign: 'center', background: '#fafcf8', borderRadius: 8, border: '1px dashed #d5ded0' }}>
+        <Sparkles size={40} style={{ color: '#2b5e39', margin: '0 auto 16px' }} />
+        <h2 style={{ marginBottom: 12, color: '#163321', fontSize: 22 }}>Document uploaded successfully.</h2>
+        <p style={{ color: '#526958', marginBottom: 32, fontSize: 15, maxWidth: 500, marginLeft: 'auto', marginRight: 'auto' }}>
+          Your original document is securely hashed and stored in MongoDB GridFS. Select your processing workflow below.
+        </p>
+        <div style={{ display: 'flex', gap: 24, justifyContent: 'center' }}>
+          <button 
+            className="button primary" 
+            style={{ padding: '16px 32px', fontSize: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, height: 'auto', borderRadius: 12, background: '#1c4228' }} 
+            onClick={() => { setTab('Parse'); onRunDocumentIntelligence(false); }}
+          >
+            <FileText size={28} /> 
+            <div>
+              <strong style={{ display: 'block', fontSize: 16 }}>Parse</strong>
+              <small style={{ fontSize: 12, opacity: 0.8, fontWeight: 400 }}>Full layout & Markdown</small>
+            </div>
+          </button>
+          <button 
+            className="button primary" 
+            style={{ padding: '16px 32px', fontSize: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, height: 'auto', borderRadius: 12, background: '#245340' }} 
+            onClick={() => { setTab('Extract'); onRunDocumentIntelligence(false); }}
+          >
+            <LayoutDashboard size={28} /> 
+            <div>
+              <strong style={{ display: 'block', fontSize: 16 }}>Extract</strong>
+              <small style={{ fontSize: 12, opacity: 0.8, fontWeight: 400 }}>Schema-driven JSON</small>
+            </div>
+          </button>
         </div>
       </div>
     );
   }
 
-  // Default: Transcription Tab with Document Intelligence Sub-Views
-  return (
-    <div className="real-ocr-workspace">
-      {/* Action Banner 1: PaddleOCR-VL-1.6 Document Intelligence */}
-      <div className="vl-action-banner">
-        <div className="banner-info">
-          <h4><Sparkles size={14} /> Document Intelligence · PaddleOCR-VL-1.6 Cloud</h4>
-          <p>
-            {vlJobState?.running
-              ? `Processing document intelligence pipeline (${vlJobState.stage || 'layout_analysis'}... Status: ${vlJobState.status || 'running'})`
-              : hasParsingRun
-              ? `${parsingRun?.total_blocks} layout blocks & ${parsingRun?.pages[0]?.tables_count || 0} tables parsed in ${((parsingRun?.execution_time_ms || 0) / 1000).toFixed(1)}s.`
-              : 'Execute hierarchical layout analysis, reading-order prediction, and sanitized Markdown parsing.'}
-          </p>
-        </div>
-        <button
-          type="button"
-          className="vl-run-btn"
-          disabled={vlJobState?.running}
-          onClick={onRunDocumentIntelligence}
-        >
-          {vlJobState?.running ? (
-            <>
-              <RotateCw size={14} className="loading-spinner" />
-              <span>Analyzing Document...</span>
-            </>
-          ) : (
-            <>
-              <Sparkles size={15} />
-              <span>{hasParsingRun ? 'Re-run PaddleOCR-VL' : 'Run Document Intelligence — PaddleOCR-VL'}</span>
-            </>
-          )}
-        </button>
-      </div>
+  if (tab === 'Parse') {
+    return <ParsePanel 
+      vlJobState={vlJobState}
+      hasParsingRun={hasParsingRun}
+      parsingRun={parsingRun}
+      onCancelDocumentIntelligence={onCancelDocumentIntelligence}
+      onRunDocumentIntelligence={onRunDocumentIntelligence}
+      jobState={jobState}
+      onRunFullOcr={onRunFullOcr}
+      onCancelFullOcr={onCancelFullOcr}
+      subTab={subTab}
+      setSubTab={setSubTab}
+      layoutBlocks={layoutBlocks}
+      activeBlockId={activeBlockId}
+      setActiveBlockId={setActiveBlockId}
+    />;
+  }
 
-      {/* Action Banner 2: PP-OCRv6 Text Detection & Recognition */}
-      <div className="ppocr-action-banner">
-        <div className="banner-info">
-          <h4>Automatic Document OCR · PP-OCRv6 Cloud</h4>
-          <p>
-            {jobState?.running
-              ? `Processing cloud pipeline (${jobState.stage || 'recognition'}... Status: ${jobState.status || 'running'})`
-              : hasDetected
-              ? `${detectedRegions.length} text lines detected with normalized [0, 100]% bounding boxes.`
-              : 'Run automatic document-level text detection & recognition on this GridFS original.'}
-          </p>
-        </div>
-        <button
-          type="button"
-          className="ppocr-run-btn"
-          disabled={jobState?.running}
-          onClick={onRunFullOcr}
-        >
-          {jobState?.running ? (
-            <>
-              <RotateCw size={14} className="loading-spinner" />
-              <span>Pipeline running...</span>
-            </>
-          ) : (
-            <>
-              <ScanLine size={15} />
-              <span>{hasDetected ? 'Re-run PP-OCRv6 OCR' : 'Run OCR — PP-OCRv6'}</span>
-            </>
-          )}
-        </button>
-      </div>
+  // If Tab is Extract
+  if (tab === 'Extract') {
+    return <ExtractPanel hasParsingRun={hasParsingRun} parsingRun={parsingRun} vlJobState={vlJobState} />;
+  }
 
-      {/* Action Banner 3: Evidence Fusion & Adaptive Recovery Engine (Phase 6) */}
-      <div className="fusion-action-banner">
-        <div className="banner-info">
-          <h4><Sparkles size={14} /> Evidence Fusion · Multi-Model Consensus Engine</h4>
-          <p>
-            {fusionJobState?.running
-              ? `Executing spatial bipartite alignment & ROVER voting... (Status: ${fusionJobState.status || 'running'})`
-              : hasFusionRun
-              ? `${fusionResult?.matched_count || 0} regions aligned, ${fusionResult?.disagreement_count || 0} disagreements detected (${fusionResult?.requires_review_count || 0} review required, ${fusionResult?.auto_proposable_count || 0} auto-proposable).`
-              : 'Fuse PP-OCRv6, TrOCR, and PaddleOCR-VL hypotheses with character-level conflict detection & targeted CLAHE/deskew recovery.'}
-          </p>
-        </div>
-        <button
-          type="button"
-          className="fusion-run-btn"
-          disabled={fusionJobState?.running}
-          onClick={onRunEvidenceFusion}
-        >
-          {fusionJobState?.running ? (
-            <>
-              <RotateCw size={14} className="loading-spinner" />
-              <span>Fusing Evidence...</span>
-            </>
-          ) : (
-            <>
-              <Sparkles size={15} />
-              <span>{hasFusionRun ? 'Re-run Evidence Fusion' : 'Run Evidence Fusion'}</span>
-            </>
-          )}
-        </button>
-      </div>
+  // If Tab is Review
+  if (tab === 'Review') {
+    return <ReviewPanel 
+      hasParsingRun={hasParsingRun} 
+      layoutBlocks={layoutBlocks} 
+      doc={doc}
+      corrections={corrections}
+      onResolve={onResolve}
+      activeBlockId={activeBlockId}
+      setActiveBlockId={setActiveBlockId}
+    />;
+  }
 
-      {/* Sub-Navigation Tabs */}
-      <div className="doc-subnav">
-        <button
-          type="button"
-          className={`doc-subnav-btn ${subTab === 'fusion' ? 'active' : ''}`}
-          onClick={() => setSubTab('fusion')}
-        >
-          <Sparkles size={13} />
-          <span>Evidence Fusion & Recovery</span>
-          {hasFusionRun && (
-            <span
-              className="pill-count"
-              style={{
-                background: (fusionResult?.disagreement_count || 0) > 0 ? '#b91c1c' : '#15803d',
-                color: '#fff',
-              }}
-            >
-              {fusionResult?.disagreement_count ?? 0}
-            </span>
-          )}
-        </button>
-        <button
-          type="button"
-          className={`doc-subnav-btn ${subTab === 'layout' ? 'active' : ''}`}
-          onClick={() => setSubTab('layout')}
-        >
-          <Sparkles size={13} />
-          <span>Layout & Reading Order</span>
-          {hasParsingRun && <span className="pill-count">{parsingRun?.total_blocks}</span>}
-        </button>
-        <button
-          type="button"
-          className={`doc-subnav-btn ${subTab === 'markdown' ? 'active' : ''}`}
-          onClick={() => setSubTab('markdown')}
-        >
-          <FileText size={13} />
-          <span>Sanitized Markdown</span>
-        </button>
-        <button
-          type="button"
-          className={`doc-subnav-btn ${subTab === 'tables' ? 'active' : ''}`}
-          onClick={() => setSubTab('tables')}
-        >
-          <LayoutDashboard size={13} />
-          <span>Parsed Tables</span>
-          {hasParsingRun && <span className="pill-count">{tableBlocks.length}</span>}
-        </button>
-        <button
-          type="button"
-          className={`doc-subnav-btn ${subTab === 'regions' ? 'active' : ''}`}
-          onClick={() => setSubTab('regions')}
-        >
-          <ScanLine size={13} />
-          <span>Detected Text Lines</span>
-          <span className="pill-count">{hasDetected ? detectedRegions.length : defaultDocRegions.length}</span>
-        </button>
-      </div>
+  // If Tab is Compare
+  if (tab === 'Compare') {
+    return <ComparePanel />;
+  }
 
-      {/* SubTab 1: Layout & Reading Order View */}
-      {subTab === 'layout' && (
-        <div>
-          {hasParsingRun ? (
-            <>
-              <div className="vl-meta-strip">
-                <span>Model: <strong>{parsingRun?.model_version || 'PaddleOCR-VL-1.6'}</strong></span>
-                <span>Blocks: <strong>{parsingRun?.total_blocks}</strong></span>
-                <span>Latency: <strong>{((parsingRun?.execution_time_ms || 0) / 1000).toFixed(2)}s</strong></span>
-                <span>Temperature: <strong>0.0</strong></span>
-                <span>Provider: <strong>{parsingRun?.provider_id}</strong></span>
-              </div>
-
-              <div className="region-list">
-                {layoutBlocks.map((b) => {
-                  const isSelected = activeBlockId === b.block_id;
-                  const typeClass = b.block_type === 'paragraph_title' ? 'title-pill' : b.block_type === 'table' ? 'table-pill' : b.block_type === 'formula' ? 'formula-pill' : 'text-pill';
-
-                  return (
-                    <div
-                      key={b.block_id}
-                      className={`layout-block-card ${isSelected ? 'focused' : ''}`}
-                      onClick={() => setActiveBlockId(b.block_id)}
-                    >
-                      <div className="layout-block-card-header">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span className="block-order-badge" style={{ background: '#472d8e' }}>#{b.reading_order}</span>
-                          <span className={`type-pill ${typeClass}`}>{b.block_type.replace('_', ' ')}</span>
-                        </div>
-                        <span style={{ fontSize: 10, color: '#7a8c75' }}>
-                          Box: [{b.bounding_box.x}%, {b.bounding_box.y}%, {b.bounding_box.w}%, {b.bounding_box.h}%]
-                        </span>
-                      </div>
-                      <div className="layout-block-card-content">{b.content || '<Empty layout block>'}</div>
-                      <div className="layout-block-card-footer">
-                        <span>Reading Sequence: #{b.reading_order}</span>
-                        {b.confidence !== undefined && <span>Score: {(b.confidence * 100).toFixed(1)}%</span>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          ) : (
-            <div className="empty-state" style={{ padding: '32px 20px', background: '#fafcf8', border: '1px dashed #d5ded0', borderRadius: 8 }}>
-              <Sparkles size={32} style={{ color: '#6246b0', marginBottom: 8 }} />
-              <h3 style={{ margin: '4px 0', fontSize: 15, color: '#261b47' }}>PaddleOCR-VL Document Intelligence Awaiting Run</h3>
-              <p style={{ margin: '4px 0 14px', fontSize: 12, color: '#687762', maxWidth: 440 }}>
-                Click <strong>"Run Document Intelligence — PaddleOCR-VL"</strong> above to extract layout blocks, determine topological reading order, and isolate tables.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* SubTab 2: Prettified Markdown View */}
-      {subTab === 'markdown' && (
-        <div className="vl-markdown-viewer">
-          <div className="vl-markdown-header">
-            <h4>Sanitized Document Markdown · Prettified Output</h4>
-            {hasParsingRun && (
-              <button type="button" className="text-button" onClick={copyMarkdown}>
-                {copiedMd ? <><Check size={13} /> Copied!</> : 'Copy Markdown'}
-              </button>
-            )}
-          </div>
-          {hasParsingRun ? (
-            <pre className="vl-markdown-body">{parsingRun?.markdown_text || 'No markdown generated.'}</pre>
-          ) : (
-            <div className="empty-state" style={{ padding: '24px 16px' }}>
-              <FileText size={28} style={{ color: '#7a8c75', marginBottom: 6 }} />
-              <p style={{ fontSize: 12, color: '#64755d' }}>Run PaddleOCR-VL Document Intelligence above to generate sanitized Markdown.</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* SubTab 3: Parsed Tables View */}
-      {subTab === 'tables' && (
-        <div>
-          {hasParsingRun ? (
-            tableBlocks.length > 0 ? (
-              tableBlocks.map(tbl => (
-                <div key={tbl.block_id} className="vl-table-card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <strong>Table Block #{tbl.reading_order}</strong>
-                    <span style={{ fontSize: 10, color: '#7a8c75' }}>Box: [{tbl.bounding_box.x}%, {tbl.bounding_box.y}%, {tbl.bounding_box.w}%, {tbl.bounding_box.h}%]</span>
-                  </div>
-                  <pre style={{ margin: 0, fontFamily: 'Consolas, monospace', fontSize: 11, background: '#fafcf8', padding: 8, borderRadius: 4, overflowX: 'auto' }}>
-                    {tbl.content}
-                  </pre>
-                </div>
-              ))
-            ) : (
-              <div className="empty-state" style={{ padding: '28px 20px', background: '#fafcf8', border: '1px dashed #d5ded0', borderRadius: 8 }}>
-                <LayoutDashboard size={28} style={{ color: '#7a8c75', marginBottom: 6 }} />
-                <h3 style={{ margin: '4px 0', fontSize: 14 }}>No Tabular Structures Detected</h3>
-                <p style={{ margin: '4px 0', fontSize: 12, color: '#6e8068' }}>PaddleOCR-VL layout detector did not identify any table cells on this page.</p>
-              </div>
-            )
-          ) : (
-            <div className="empty-state" style={{ padding: '24px 16px' }}>
-              <LayoutDashboard size={28} style={{ color: '#7a8c75', marginBottom: 6 }} />
-              <p style={{ fontSize: 12, color: '#64755d' }}>Run PaddleOCR-VL Document Intelligence to detect and parse tabular regions.</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* SubTab 4: Detected Text Lines Review Queue (Existing PP-OCRv6 & TrOCR Review) */}
-      {subTab === 'regions' && (
-        <div>
-          <div className="review-region-header">
-            <h3>{hasDetected ? `Detected Document Regions (${detectedRegions.length})` : 'Supported text-line regions'}</h3>
-            <span>
-              {hasDetected
-                ? `${detectedRegions.filter(r => corrections[`${doc.id}:${r.id}`]).length}/${detectedRegions.length} verified`
-                : `${defaultDocRegions.filter(r => corrections[`${doc.id}:${r.id}`]).length}/4 verified`}
-            </span>
-          </div>
-
-          <div className="region-list">
-            {hasDetected ? (
-              detectedRegions.map((reg, idx) => {
-                const key = `${doc.id}:${reg.id}`;
-                const confirmed = corrections[key];
-                const trocr = trocrResults[key];
-                const isSelected = activeRegion === reg.id;
-                const isIllegible = reg.is_illegible;
-
-                return (
-                  <div className={`region-card ${isSelected ? 'focused' : ''}`} key={reg.id}>
-                    <button className="region-card-title" onClick={() => setActiveRegion(reg.id)}>
-                      <span className={`region-number ${confirmed ? 'done' : isIllegible ? 'has-ocr' : 'done'}`}>
-                        {confirmed ? <Check size={13} /> : idx + 1}
-                      </span>
-                      <strong>{reg.original || reg.line}</strong>
-                      <span>
-                        {confirmed
-                          ? 'Human verified'
-                          : isIllegible
-                          ? 'Low confidence'
-                          : `PP-OCRv6: ${((reg.confidence ?? 0) * 100).toFixed(1)}%`}
-                      </span>
-                      <ChevronDown size={15} />
-                    </button>
-
-                    {isSelected && (
-                      <div className="region-detail">
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
-                          <p style={{ margin: 0 }}>
-                            Normalized Box: [{reg.bounding_box.x}%, {reg.bounding_box.y}%, {reg.bounding_box.w}%, {reg.bounding_box.h}%]
-                          </p>
-                          {reg.polygon && <span className="polygon-badge">Polygon: 4 vertices</span>}
-                          {isIllegible && <span className="illegible-flag-badge">LOW CONFIDENCE ILLEGIBLE STROKE</span>}
-                        </div>
-
-                        {/* PP-OCRv6 Cloud Model Card */}
-                        <div className="trocr-prediction-box">
-                          <div className="trocr-header">
-                            {confirmed ? (
-                              <span className="verified-badge"><Check size={11} /> HUMAN VERIFIED READING</span>
-                            ) : (
-                              <span className="unverified-badge"><Sparkles size={11} /> PP-OCRv6 CLOUD PREDICTION</span>
-                            )}
-                            <span style={{ fontSize: 10, color: '#74836f' }}>
-                              Model: <strong>{reg.model_version || 'PP-OCRv6'}</strong>
-                            </span>
-                          </div>
-
-                          {confirmed && (
-                            <div style={{ background: '#f5faf3', border: '1px solid #d4ebd0', padding: '10px 12px', borderRadius: 5, marginBottom: 10 }}>
-                              <span style={{ fontSize: 9, color: '#3c6e3f', fontWeight: 600 }}>CONFIRMED TEXT:</span>
-                              <p style={{ margin: '3px 0 0', fontWeight: 600, color: '#204d2e' }}>"{confirmed}"</p>
-                              <small style={{ fontSize: 9, color: '#6e856f' }}>Verified by {reviewer} · Preserved in audit trail</small>
-                            </div>
-                          )}
-
-                          <div>
-                            <span style={{ fontSize: 9, color: '#88957f', letterSpacing: 0.5, fontWeight: 600 }}>PP-OCRv6 RECOGNIZED TEXT:</span>
-                            <p style={{ margin: '4px 0 0', fontStyle: 'italic', color: '#273c30' }}>"{reg.original || reg.line}"</p>
-                          </div>
-
-                          <div className="ocr-meta-grid">
-                            <div className="ocr-meta-item">
-                              <span>Model Confidence</span>
-                              <strong>{((reg.confidence ?? 0) * 100).toFixed(1)}%</strong>
-                            </div>
-                            <div className="ocr-meta-item">
-                              <span>Provider</span>
-                              <strong>{reg.provider_id || 'paddleocr-cloud'}</strong>
-                            </div>
-                            <div className="ocr-meta-item">
-                              <span>Illegibility Flag</span>
-                              <strong>{reg.is_illegible ? 'True' : 'False'}</strong>
-                            </div>
-                          </div>
-
-                          {/* Dual Model TrOCR Line Recheck Section */}
-                          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e2e8d8' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                              <span style={{ fontSize: 10, fontWeight: 600, color: '#4d6148' }}>
-                                DUAL-MODEL VALIDATION (TrOCR Line Recheck):
-                              </span>
-                              <button
-                                type="button"
-                                className="trocr-run-btn"
-                                style={{ margin: 0, padding: '5px 9px', fontSize: 10 }}
-                                disabled={isRecognizing}
-                                onClick={() => onRunOcr(doc.id, reg.id, reg.bounding_box, reg.page_index)}
-                              >
-                                {isRecognizing ? (
-                                  <>
-                                    <RotateCw size={12} className="loading-spinner" />
-                                    <span>Evaluating...</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Sparkles size={12} />
-                                    <span>{trocr ? 'Re-run TrOCR Recheck' : 'Run TrOCR Recheck'}</span>
-                                  </>
-                                )}
-                              </button>
-                            </div>
-
-                            {trocr && (
-                              <div style={{ background: '#f9fbf7', border: '1px solid #dce4d4', borderRadius: 4, padding: '8px 10px', marginTop: 6 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#566b51' }}>
-                                  <span>microsoft/trocr-base-handwritten:</span>
-                                  <strong>{(trocr.confidence * 100).toFixed(1)}% ({trocr.execution_time_ms.toFixed(0)} ms)</strong>
-                                </div>
-                                <p style={{ margin: '4px 0 0', fontStyle: 'italic', fontSize: 12, color: '#1f3529' }}>
-                                  "{trocr.recognized_text}"
-                                </p>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Human Verification Form */}
-                          <form onSubmit={handleConfirm} style={{ marginTop: 14 }}>
-                            <label className="field-label" htmlFor={`ocr-edit-${reg.id}`}>Reviewer Verified Reading</label>
-                            <input
-                              id={`ocr-edit-${reg.id}`}
-                              className="text-input"
-                              required
-                              maxLength={200}
-                              value={draftText}
-                              onChange={e => setDraftText(e.target.value)}
-                            />
-                            <div className="decision-actions">
-                              <button
-                                type="button"
-                                className="text-button"
-                                onClick={() => {
-                                  onResolve(doc.id, reg.id, '[illegible]');
-                                  setDraftText('[illegible]');
-                                }}
-                              >
-                                Mark illegible
-                              </button>
-                              <button className="button primary small-button" type="submit" disabled={!draftText.trim()}>
-                                <Check size={14} />
-                                {confirmed ? 'Update verification' : 'Confirm as human verified'}
-                              </button>
-                            </div>
-                          </form>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            ) : (
-              defaultDocRegions.map((reg, idx) => {
-                const key = `${doc.id}:${reg.id}`;
-                const res = trocrResults[key];
-                const confirmed = corrections[key];
-                const isSelected = activeRegion === reg.id;
-                return (
-                  <div className={`region-card ${isSelected ? 'focused' : ''}`} key={reg.id}>
-                    <button className="region-card-title" onClick={() => setActiveRegion(reg.id)}>
-                      <span className={`region-number ${confirmed ? 'done' : res ? 'has-ocr' : ''}`}>
-                        {confirmed ? <Check size={13} /> : res ? <Sparkles size={13} /> : idx + 1}
-                      </span>
-                      <strong>{reg.name}</strong>
-                      <span>
-                        {confirmed ? 'Human verified' : res ? 'Unverified proposal' : 'Awaiting OCR'}
-                      </span>
-                      <ChevronDown size={15} />
-                    </button>
-
-                    {isSelected && (
-                      <div className="region-detail">
-                        <p>{reg.description} · Normalized Box: [{reg.bbox.x}%, {reg.bbox.y}%, {reg.bbox.w}%, {reg.bbox.h}%]</p>
-
-                        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14 }}>
-                          <button
-                            type="button"
-                            className="trocr-run-btn"
-                            disabled={isRecognizing}
-                            onClick={() => onRunOcr(doc.id, reg.id, reg.bbox, reg.page)}
-                          >
-                            {isRecognizing ? (
-                              <>
-                                <RotateCw size={14} className="loading-spinner" />
-                                <span>Executing TrOCR inference...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles size={14} />
-                                <span>{res ? 'Re-run OCR (TrOCR Base)' : 'Run OCR (TrOCR Base)'}</span>
-                              </>
-                            )}
-                          </button>
-                          {res && (
-                            <span style={{ fontSize: 11, color: '#687762' }}>
-                              Latency: {res.execution_time_ms.toFixed(0)} ms
-                            </span>
-                          )}
-                        </div>
-
-                        {res ? (
-                          <div className="trocr-prediction-box">
-                            <div className="trocr-header">
-                              {confirmed ? (
-                                <span className="verified-badge"><Check size={11} /> HUMAN VERIFIED READING</span>
-                              ) : (
-                                <span className="unverified-badge"><Sparkles size={11} /> UNVERIFIED AUTOMATED PROPOSAL</span>
-                              )}
-                              <span style={{ fontSize: 10, color: '#74836f' }}>
-                                Model: <strong>{res.model_identifier}</strong>
-                              </span>
-                            </div>
-
-                            {confirmed && (
-                              <div style={{ background: '#f5faf3', border: '1px solid #d4ebd0', padding: '10px 12px', borderRadius: 5, marginBottom: 10 }}>
-                                <span style={{ fontSize: 9, color: '#3c6e3f', fontWeight: 600 }}>CONFIRMED TEXT:</span>
-                                <p style={{ margin: '3px 0 0', fontWeight: 600, color: '#204d2e' }}>"{confirmed}"</p>
-                                <small style={{ fontSize: 9, color: '#6e856f' }}>Verified by {reviewer} · Preserved in audit trail</small>
-                              </div>
-                            )}
-
-                            <div>
-                              <span style={{ fontSize: 9, color: '#88957f', letterSpacing: 0.5, fontWeight: 600 }}>RAW TrOCR DECODER PROPOSAL:</span>
-                              <p style={{ margin: '4px 0 0', fontStyle: 'italic', color: '#273c30' }}>"{res.recognized_text}"</p>
-                            </div>
-
-                            <div className="ocr-meta-grid">
-                              <div className="ocr-meta-item">
-                                <span>Softmax Confidence</span>
-                                <strong>{(res.confidence * 100).toFixed(1)}%</strong>
-                              </div>
-                              <div className="ocr-meta-item">
-                                <span>Calibrated Score</span>
-                                <strong>{((res.candidate?.calibrated_score ?? res.confidence) * 100).toFixed(1)}%</strong>
-                              </div>
-                              <div className="ocr-meta-item">
-                                <span>Inference Latency</span>
-                                <strong>{res.execution_time_ms.toFixed(0)} ms</strong>
-                              </div>
-                            </div>
-
-                            <form onSubmit={handleConfirm} style={{ marginTop: 14 }}>
-                              <label className="field-label" htmlFor={`ocr-edit-${reg.id}`}>Reviewer Verified Reading</label>
-                              <input
-                                id={`ocr-edit-${reg.id}`}
-                                className="text-input"
-                                required
-                                maxLength={200}
-                                value={draftText}
-                                onChange={e => setDraftText(e.target.value)}
-                              />
-                              <div className="decision-actions">
-                                <button
-                                  type="button"
-                                  className="text-button"
-                                  onClick={() => {
-                                    onResolve(doc.id, reg.id, '[illegible]');
-                                    setDraftText('[illegible]');
-                                  }}
-                                >
-                                  Mark illegible
-                                </button>
-                                <button className="button primary small-button" type="submit" disabled={!draftText.trim()}>
-                                  <Check size={14} />
-                                  {confirmed ? 'Update verification' : 'Confirm as human verified'}
-                                </button>
-                              </div>
-                            </form>
-                          </div>
-                        ) : (
-                          <div className="provenance-card">
-                            <ShieldCheck size={16} />
-                            <p>
-                              Click <strong>"Run OCR — PP-OCRv6"</strong> above for automatic full-page detection, or <strong>"Run OCR (TrOCR Base)"</strong> to crop from MongoDB GridFS and execute local CPU inference.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* SubTab 5: Evidence Fusion & Adaptive Recovery Engine (Phase 6) */}
-      {subTab === 'fusion' && (
-        <div className="fusion-panel">
-          {!hasFusionRun ? (
-            <div className="empty-state" style={{ background: '#faf9fe', border: '1px dashed #d5c8f8', borderRadius: 8, padding: 36 }}>
-              <Sparkles size={36} style={{ color: '#7c3aed', marginBottom: 12 }} />
-              <h3 style={{ margin: '0 0 8px', color: '#3b1e7a' }}>Evidence Fusion Engine Ready</h3>
-              <p style={{ margin: '0 0 18px', color: '#685987', maxWidth: 440 }}>
-                Perform Hungarian bipartite spatial matching, ROVER character-level conflict analysis,
-                and targeted CLAHE recovery across PP-OCRv6, TrOCR, and PaddleOCR-VL.
-              </p>
-              <button
-                type="button"
-                className="fusion-run-btn"
-                disabled={fusionJobState?.running}
-                onClick={onRunEvidenceFusion}
-              >
-                {fusionJobState?.running ? (
-                  <>
-                    <RotateCw size={14} className="loading-spinner" />
-                    <span>Fusing Evidence...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={14} />
-                    <span>Run Evidence Fusion</span>
-                  </>
-                )}
-              </button>
-            </div>
-          ) : (
-            <>
-              {/* Sticky Human Verification Banner */}
-              {(fusionResult?.requires_review_count || 0) > 0 && (
-                <div className="sticky-review-banner">
-                  <AlertTriangle size={16} />
-                  <span>
-                    <strong>Human Review Required:</strong> {fusionResult?.requires_review_count} region(s) exhibit model disagreements or critical tokens. System strictly enforces Invariant 2 (No Fabricated Text).
-                  </span>
-                </div>
-              )}
-
-              {/* Fusion KPIs */}
-              <div className="fusion-kpi-bar">
-                <div className="fusion-kpi-item">
-                  <span>Aligned Regions</span>
-                  <strong>{fusionResult?.matched_count || 0}</strong>
-                </div>
-                <div className="fusion-kpi-item">
-                  <span>Disagreements</span>
-                  <strong style={{ color: (fusionResult?.disagreement_count || 0) > 0 ? '#b91c1c' : '#15803d' }}>
-                    {fusionResult?.disagreement_count || 0}
-                  </strong>
-                </div>
-                <div className="fusion-kpi-item">
-                  <span>Requires Review</span>
-                  <strong style={{ color: (fusionResult?.requires_review_count || 0) > 0 ? '#b91c1c' : '#15803d' }}>
-                    {fusionResult?.requires_review_count || 0}
-                  </strong>
-                </div>
-                <div className="fusion-kpi-item">
-                  <span>Auto-Proposable</span>
-                  <strong style={{ color: '#15803d' }}>
-                    {fusionResult?.auto_proposable_count || 0}
-                  </strong>
-                </div>
-                <div className="fusion-kpi-item">
-                  <span>Strategy / Alg</span>
-                  <strong style={{ fontSize: 11, marginTop: 4 }}>
-                    {fusionResult?.strategy_version || 'evidence-aware-v1'}
-                  </strong>
-                </div>
-              </div>
-
-              {/* Proposals and Disagreements List */}
-              <div className="proposals-list">
-                {(fusionResult?.proposals || []).map((proposal: FusionProposalDetail) => {
-                  const regId = proposal.region_id;
-                  const isDone = Boolean(corrections[`${doc.id}:${regId}`]);
-                  const confirmedVal = corrections[`${doc.id}:${regId}`];
-                  const isRecovering = Boolean(recoveringRegions[`${doc.id}:${regId}`]);
-                  const isCritical = proposal.uncertainty_indicators.some((u: string) => u.includes('CRITICAL'));
-
-                  return (
-                    <div
-                      key={proposal.id}
-                      className={`proposal-card ${proposal.requires_review ? 'review-required' : 'auto-proposable'}`}
-                    >
-                      <div className="proposal-header">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: '#1f3c2f' }}>
-                            Region: {regId.toUpperCase()}
-                          </span>
-                          <span className="source-label" style={{ fontSize: 9 }}>
-                            Page {proposal.page_index + 1}
-                          </span>
-                          <span
-                            className="pill"
-                            style={{
-                              fontSize: 9,
-                              background: proposal.requires_review ? '#fef2f2' : '#f0fdf4',
-                              color: proposal.requires_review ? '#991b1b' : '#166534',
-                              border: `1px solid ${proposal.requires_review ? '#fecaca' : '#bbf7d0'}`,
-                            }}
-                          >
-                            {proposal.requires_review ? 'Requires Human Review' : 'Auto-Proposable Consensus'}
-                          </span>
-                          <span
-                            className="source-label"
-                            style={{ background: '#f5f3ff', color: '#6d28d9', borderColor: '#ddd6fe', fontSize: 8 }}
-                          >
-                            {proposal.calibration_status || 'UNCALIBRATED'}
-                          </span>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          {proposal.disagreement_reasons.map((reason: string) => (
-                            <span
-                              key={reason}
-                              className={`disagreement-badge ${
-                                isCritical || reason.includes('NUMERIC') ? 'severity-critical' : 'severity-high'
-                              }`}
-                            >
-                              {reason}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Side-by-Side Model Candidate Comparison Grid */}
-                      <div className="candidate-grid-3">
-                        <div className="candidate-grid-col">
-                          <span className="col-label">PP-OCRv6 Cloud</span>
-                          <p className="col-text">
-                            "{proposal.candidates?.find((c: any) => c.source?.includes('paddleocr-cloud'))?.text ||
-                              proposal.candidates?.[1]?.text ||
-                              'Awaiting line detection'}"
-                          </p>
-                          <span className="col-meta">
-                            Conf: {(((proposal.candidates?.find((c: any) => c.source?.includes('paddleocr-cloud'))?.confidence ?? 0.95)) * 100).toFixed(1)}% · normalized box
-                          </span>
-                        </div>
-
-                        <div className="candidate-grid-col">
-                          <span className="col-label">TrOCR Handwritten CPU</span>
-                          <p className="col-text" style={{ color: '#047857' }}>
-                            "{proposal.candidates?.find((c: any) => c.source === 'trocr')?.text ||
-                              proposal.candidates?.[0]?.text ||
-                              'Awaiting local inference'}"
-                          </p>
-                          <span className="col-meta">
-                            Conf: {(((proposal.candidates?.find((c: any) => c.source === 'trocr')?.confidence ?? 0.92)) * 100).toFixed(1)}% · microsoft/trocr-base
-                          </span>
-                        </div>
-
-                        <div className="candidate-grid-col">
-                          <span className="col-label">PaddleOCR-VL-1.6 Layout</span>
-                          <p className="col-text" style={{ color: '#4338ca' }}>
-                            "{proposal.candidates?.find((c: any) => c.source?.includes('vl'))?.text ||
-                              proposal.candidates?.[2]?.text ||
-                              'Paragraph block context'}"
-                          </p>
-                          <span className="col-meta">
-                            Conf: {(((proposal.candidates?.find((c: any) => c.source?.includes('vl'))?.confidence ?? 0.88)) * 100).toFixed(1)}% · layout block
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Proposed Text & Recovery Action */}
-                      <div style={{ marginTop: 8, padding: '8px 12px', background: '#fafaf9', borderRadius: 6, border: '1px solid #e7e5e4' }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: '#78716c', textTransform: 'uppercase' }}>
-                          Fusion Engine Consensus:
-                        </span>
-                        <p style={{ margin: '3px 0 0', fontSize: 13, fontWeight: 600, color: '#1c1917' }}>
-                          "{proposal.proposed_text || 'Consensus not safe — human inspection required'}"
-                        </p>
-                        {confirmedVal && (
-                          <small style={{ fontSize: 9, color: '#15803d', display: 'block', marginTop: 4 }}>
-                            Verified reading: "{confirmedVal}" (by {reviewer})
-                          </small>
-                        )}
-                      </div>
-
-                      {/* Adaptive Recovery Bar */}
-                      <div className="recovery-box">
-                        <div>
-                          <p>
-                            <strong>Targeted Adaptive Recovery:</strong> CLAHE contrast equalization + 4px bounding box margin + Hough deskew.
-                          </p>
-                          <span style={{ fontSize: 9, color: '#7c3aed' }}>
-                            {proposal.uncertainty_indicators.includes('RECOVERED_CLAHE_VARIANT')
-                              ? 'Status: Improved via CLAHE contrast recovery variant'
-                              : 'Budget: Max 2 TrOCR variants per region · SHA-256 deduplicated'}
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          className="recovery-btn"
-                          disabled={isRecovering}
-                          onClick={() => onRunTargetedRecovery(regId)}
-                        >
-                          {isRecovering ? (
-                            <>
-                              <RotateCw size={12} className="loading-spinner" />
-                              <span>Recovering...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles size={12} />
-                              <span>Run Targeted Recovery</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-
-                      {/* One-Click Review Confirmation */}
-                      <div style={{ display: 'flex', gap: 10, marginTop: 12, justifyContent: 'flex-end', alignItems: 'center' }}>
-                        <button
-                          type="button"
-                          className="text-button"
-                          onClick={() => onResolve(doc.id, regId, '[illegible]')}
-                        >
-                          Mark Illegible
-                        </button>
-                        <button
-                          type="button"
-                          className="button primary small-button"
-                          onClick={() => onResolve(doc.id, regId, proposal.proposed_text || proposal.candidates[0]?.text || '')}
-                        >
-                          <Check size={12} />
-                          <span>{isDone ? 'Update Verification' : 'Accept Consensus Reading'}</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  return null;
 }
 
 const genuineBenchmarkSamples = [

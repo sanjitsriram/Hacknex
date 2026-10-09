@@ -28,6 +28,8 @@ logger = get_logger("evidence_ocr.workers")
 class WorkerRunner:
     """In-process asynchronous job execution coordinator."""
 
+    _active_tasks: dict[str, asyncio.Task] = {}
+
     def __init__(
         self,
         job_repo: JobRepository,
@@ -38,6 +40,8 @@ class WorkerRunner:
         region_repo: Optional[RegionRepository] = None,
         parsing_repo: Optional[DocumentParsingRepository] = None,
         recognition_service: Optional[Any] = None,
+        job_timeout_seconds: int = 180,
+        heartbeat_interval_seconds: int = 5,
     ) -> None:
         self.job_repo = job_repo
         self.cloud_ocr_provider = cloud_ocr_provider
@@ -47,18 +51,94 @@ class WorkerRunner:
         self.region_repo = region_repo
         self.parsing_repo = parsing_repo
         self.recognition_service = recognition_service
+        self.job_timeout_seconds = job_timeout_seconds
+        self.heartbeat_interval_seconds = heartbeat_interval_seconds
+
+    @classmethod
+    def is_active(cls, job_id: str) -> bool:
+        """Check whether a job is actively running in memory across any runner instance."""
+        task = cls._active_tasks.get(job_id)
+        return task is not None and not task.done()
+
+    @classmethod
+    def cancel_active_task(cls, job_id: str) -> bool:
+        """Cancel in-memory asyncio task if running."""
+        task = cls._active_tasks.get(job_id)
+        if task and not task.done():
+            task.cancel()
+            return True
+        return False
+
+    def is_job_active(self, job_id: str) -> bool:
+        """Check whether a job is actively running in memory."""
+        return self.is_active(job_id)
+
+    async def cancel_job(self, job_id: str, reason: str = "Job cancelled by user") -> bool:
+        """Explicitly cancel an active or queued in-memory job task and update database."""
+        task = self._active_tasks.get(job_id)
+        if task and not task.done():
+            task.cancel()
+        if self.job_repo:
+            await self.job_repo.cancel_job(job_id, reason=reason)
+        return True
 
     async def dispatch_document_recognition(
         self, job_id: str, document_id: str, pipeline_version: str = "v1.0.0"
     ) -> None:
-        """Enqueue and execute PP-OCRv6 recognition pipeline steps asynchronously."""
-        asyncio.create_task(self._run_job_pipeline(job_id, document_id))
+        """Enqueue and execute PP-OCRv6 recognition pipeline steps asynchronously with strong task reference."""
+        task = asyncio.create_task(
+            self._run_with_watchdog(job_id, self._run_job_pipeline(job_id, document_id))
+        )
+        self._active_tasks[job_id] = task
+        task.add_done_callback(lambda _: self._active_tasks.pop(job_id, None))
 
     async def dispatch_document_intelligence(
         self, job_id: str, document_id: str, pipeline_version: str = "v1.0.0"
     ) -> None:
         """Enqueue and execute PaddleOCR-VL document intelligence pipeline steps asynchronously."""
-        asyncio.create_task(self._run_document_intelligence_pipeline(job_id, document_id))
+        task = asyncio.create_task(
+            self._run_with_watchdog(job_id, self._run_document_intelligence_pipeline(job_id, document_id))
+        )
+        self._active_tasks[job_id] = task
+        task.add_done_callback(lambda _: self._active_tasks.pop(job_id, None))
+
+    async def _run_with_watchdog(self, job_id: str, coro) -> None:
+        """Wrap job execution in an outer timeout watchdog with recurring heartbeat pulses."""
+        heartbeat_task = asyncio.create_task(self._pulse_heartbeat(job_id))
+        try:
+            await asyncio.wait_for(coro, timeout=self.job_timeout_seconds)
+        except asyncio.TimeoutError:
+            logger.error("Job %s timed out after exceeding %ss watchdog limit", job_id, self.job_timeout_seconds)
+            if self.job_repo:
+                await self.job_repo.mark_failed(
+                    job_id,
+                    error_message=f"Job exceeded maximum allowed execution timeout ({self.job_timeout_seconds}s).",
+                )
+        except asyncio.CancelledError:
+            logger.warning("Job %s was cancelled during execution", job_id)
+            if self.job_repo:
+                await self.job_repo.cancel_job(job_id, reason="Execution cancelled by system or user request")
+            raise
+        except Exception as exc:
+            logger.exception("Watchdog caught unexpected exception for job %s: %s", job_id, exc)
+            if self.job_repo:
+                await self.job_repo.mark_failed(job_id, error_message=str(exc))
+        finally:
+            heartbeat_task.cancel()
+            try:
+                await heartbeat_task
+            except (asyncio.CancelledError, Exception):
+                pass
+
+    async def _pulse_heartbeat(self, job_id: str) -> None:
+        """Periodically update job heartbeat timestamp in database to prove worker liveness."""
+        try:
+            while True:
+                await asyncio.sleep(self.heartbeat_interval_seconds)
+                if self.job_repo:
+                    await self.job_repo.update_heartbeat(job_id)
+        except asyncio.CancelledError:
+            pass
 
     async def _run_job_pipeline(self, job_id: str, document_id: str) -> None:
         """Execute multi-stage pipeline flow connecting GridFS, PP-OCRv6 cloud API, and MongoDB."""
@@ -196,9 +276,15 @@ class WorkerRunner:
 
             logger.info("Job %s completed successfully (%s regions detected)", job_id, len(regions_to_save))
 
+        except asyncio.CancelledError:
+            logger.warning("Job %s was cancelled during recognition pipeline", job_id)
+            if self.job_repo:
+                await self.job_repo.cancel_job(job_id, reason="Execution cancelled by system or user request")
+            raise
         except Exception as exc:
             logger.exception("Job %s failed with exception: %s", job_id, str(exc))
-            await self.job_repo.mark_failed(job_id, error_message=str(exc))
+            if self.job_repo:
+                await self.job_repo.mark_failed(job_id, error_message=str(exc))
 
     async def _run_document_intelligence_pipeline(self, job_id: str, document_id: str) -> None:
         """Execute PaddleOCR-VL document intelligence flow connecting GridFS and MongoDB."""
@@ -353,6 +439,12 @@ class WorkerRunner:
 
             logger.info("Document Intelligence job %s completed successfully", job_id)
 
+        except asyncio.CancelledError:
+            logger.warning("Job %s was cancelled during document intelligence pipeline", job_id)
+            if self.job_repo:
+                await self.job_repo.cancel_job(job_id, reason="Execution cancelled by system or user request")
+            raise
         except Exception as exc:
             logger.exception("Document Intelligence job %s failed: %s", job_id, str(exc))
-            await self.job_repo.mark_failed(job_id, error_message=str(exc))
+            if self.job_repo:
+                await self.job_repo.mark_failed(job_id, error_message=str(exc))

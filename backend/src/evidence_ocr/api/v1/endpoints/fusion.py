@@ -60,7 +60,7 @@ async def _get_document_or_404(doc_id: str, doc_repo: DocumentRepository):
 
 @router.post(
     "/{document_id}/fusion-runs",
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_202_ACCEPTED,
     response_model=CreateFusionRunResponse,
     summary="Queue evidence fusion run",
 )
@@ -255,7 +255,7 @@ async def list_disagreements(
 
 @router.post(
     "/{document_id}/regions/{region_id}/recover",
-    status_code=status.HTTP_202_ACCEPTED,
+    status_code=status.HTTP_200_OK,
     response_model=CreateRecoveryResponse,
     summary="Run bounded targeted recovery for a region",
 )

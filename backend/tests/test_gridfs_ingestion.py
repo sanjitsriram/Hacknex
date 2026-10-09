@@ -238,8 +238,8 @@ async def test_07_exceeded_file_size_limit(app, client: httpx.AsyncClient, memor
     app.dependency_overrides[get_document_repository] = lambda: memory_doc_repo
     app.dependency_overrides[get_storage_provider] = lambda: mock_storage
     try:
-        # 10 MiB + 1024 bytes
-        oversized = b"%PDF-1.4\n" + b"A" * (10 * 1024 * 1024 + 1024)
+        # Exceeds max_upload_size_bytes (20 MiB + 1024 bytes)
+        oversized = b"%PDF-1.4\n" + b"A" * (20 * 1024 * 1024 + 1024)
         response = await client.post(
             "/api/v1/documents",
             files={"file": ("huge.pdf", oversized, "application/pdf")},

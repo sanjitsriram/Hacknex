@@ -10,6 +10,7 @@ class JobCreateRequest(BaseModel):
 
     pipeline_version: str = Field(default="v1.0.0", description="Reproducible pipeline version tag")
     idempotency_key: Optional[str] = Field(default=None, description="Optional idempotency key")
+    force: bool = Field(default=False, description="Force cancel any active or stale job and restart pipeline immediately")
 
 
 class JobResponse(BaseModel):
@@ -39,6 +40,7 @@ class JobStatusResponse(BaseModel):
     error: Optional[str] = Field(default=None, description="Error message if failed")
     retry_count: int = Field(default=0, description="Retry count")
     started_at: Optional[str] = Field(default=None, description="Execution start timestamp")
+    heartbeat_at: Optional[str] = Field(default=None, description="Last worker heartbeat pulse timestamp")
     created_at: str = Field(description="Creation timestamp")
     updated_at: str = Field(description="Last update timestamp")
     completed_at: Optional[str] = Field(default=None, description="Completion timestamp")

@@ -49,7 +49,12 @@ class DatabaseManager:
             serverSelectionTimeoutMS=cfg.mongodb_server_selection_timeout_ms,
             appname="EvidenceOCR-Backend",
         )
-        self._is_connected = True
+        try:
+            await self.ping()
+            logger.info("MongoDB connection verified for database '%s'.", self._default_db_name)
+        except DatabaseUnavailableError:
+            self._is_connected = False
+            logger.warning("MongoDB client initialized, but the database is not ready.")
 
     async def close(self) -> None:
         """Close client connections cleanly during application shutdown."""
@@ -67,8 +72,10 @@ class DatabaseManager:
         try:
             # Send admin ping with tight timeout
             await self._client.admin.command("ping")
+            self._is_connected = True
             return True
         except (PyMongoError, Exception) as exc:
+            self._is_connected = False
             logger.warning("MongoDB ping failed: %s", str(exc))
             raise DatabaseUnavailableError(f"Database cluster unreachable: {str(exc)}") from exc
 
@@ -92,4 +99,8 @@ def get_db_manager() -> DatabaseManager:
 async def get_db() -> AsyncDatabase:
     """FastAPI dependency for accessing the primary AsyncDatabase."""
     manager = get_db_manager()
+    if not manager.is_connected:
+        raise DatabaseUnavailableError(
+            "MongoDB is not ready. Check MONGODB_URI and GET /api/v1/health/ready."
+        )
     return manager.get_database()

@@ -56,11 +56,11 @@ router = APIRouter(prefix="/documents", tags=["Documents"])
     response_model=DocumentUploadResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Upload and ingest a document",
-    description="Ingests a new document, verifies constraints (PDF/PNG/JPEG, <=10MB, <=20 pages), and stores in MongoDB GridFS.",
+    description="Ingests a new document, verifies configured file/page limits, and stores it in MongoDB GridFS.",
 )
 async def upload_document(
     file: Annotated[UploadFile, File(description="Document binary file (PDF, PNG, JPEG)")],
-    title: Annotated[str, Form(description="Document title")] = "Untitled document",
+    title: Annotated[str, Form(min_length=1, max_length=120, description="Document title")] = "Untitled document",
     kind: Annotated[str, Form(description="Document category")] = "Field notes",
     expected_language: Annotated[str, Form(description="Expected language")] = "English",
     ingestion_service: Annotated[IngestionService, Depends(get_ingestion_service)] = None,
@@ -249,18 +249,37 @@ async def schedule_recognition(
     if not doc:
         raise EntityNotFoundError("Document", id)
 
-    # Check for active existing job to prevent redundant duplicate execution
-    active_job = await job_repo.find_active_by_document(id)
+    # Check for active existing job with zombie recovery and force re-run support
+    active_job: Optional[ProcessingJob] = None
+    if hasattr(job_repo, "find_active_by_document"):
+        res = await job_repo.find_active_by_document(id, task_type="recognition")
+        if isinstance(res, ProcessingJob):
+            active_job = res
+    if not active_job and hasattr(job_repo, "list_by_document"):
+        job_list = await job_repo.list_by_document(id)
+        if isinstance(job_list, list):
+            for candidate in job_list:
+                if (
+                    isinstance(candidate, ProcessingJob)
+                    and candidate.status in (JobStatus.QUEUED, JobStatus.SUBMITTED, JobStatus.RUNNING)
+                    and getattr(candidate, "task_type", None) in ("recognition", None)
+                ):
+                    active_job = candidate
+                    break
+
     if active_job:
-        return JobResponse(
-            job_id=active_job.id,
-            document_id=active_job.document_id,
-            status=active_job.status,
-            stage=active_job.stage,
-            provider=getattr(active_job, "provider", "paddleocr-cloud") or "paddleocr-cloud",
-            model=getattr(active_job, "model", "PP-OCRv6") or "PP-OCRv6",
-            created_at=active_job.created_at,
-        )
+        if getattr(payload, "force", False):
+            await worker_runner.cancel_job(active_job.id, reason="Force re-run requested by user")
+        else:
+            return JobResponse(
+                job_id=active_job.id,
+                document_id=active_job.document_id,
+                status=active_job.status,
+                stage=active_job.stage,
+                provider=getattr(active_job, "provider", "paddleocr-cloud") or "paddleocr-cloud",
+                model=getattr(active_job, "model", "PP-OCRv6") or "PP-OCRv6",
+                created_at=active_job.created_at,
+            )
 
     now = datetime.now(timezone.utc).isoformat()
     job_id = f"job-{uuid.uuid4().hex[:8]}"
@@ -308,10 +327,15 @@ async def list_document_regions(
     if not doc:
         raise EntityNotFoundError("Document", id)
 
-    if region_repo is None:
-        return DocumentRegionsListResponse(document_id=id, total=0, items=[])
-
-    entities = await region_repo.get_by_document_id(id)
+    entities = []
+    if hasattr(region_repo, "get_by_document_id"):
+        res = await region_repo.get_by_document_id(id)
+        if isinstance(res, list):
+            entities = res
+    if not entities and hasattr(region_repo, "list_by_document"):
+        res = await region_repo.list_by_document(id)
+        if isinstance(res, list):
+            entities = res
     items = [
         DocumentRegionDetail(
             id=r.id,
@@ -420,18 +444,36 @@ async def schedule_document_intelligence(
     if not doc:
         raise EntityNotFoundError("Document", id)
 
-    # Check for active existing job for this document to prevent duplicate execution
-    active_jobs = await job_repo.list_by_document(id)
-    for aj in active_jobs:
-        if aj.status in (JobStatus.QUEUED, JobStatus.SUBMITTED, JobStatus.RUNNING) and getattr(aj, "model", "") == "PaddleOCR-VL-1.6":
+    # Check for active existing job with zombie recovery and force re-run support
+    active_job: Optional[ProcessingJob] = None
+    if hasattr(job_repo, "find_active_by_document"):
+        res = await job_repo.find_active_by_document(id, task_type="document_intelligence")
+        if isinstance(res, ProcessingJob):
+            active_job = res
+    if not active_job and hasattr(job_repo, "list_by_document"):
+        job_list = await job_repo.list_by_document(id)
+        if isinstance(job_list, list):
+            for candidate in job_list:
+                if (
+                    isinstance(candidate, ProcessingJob)
+                    and candidate.status in (JobStatus.QUEUED, JobStatus.SUBMITTED, JobStatus.RUNNING)
+                    and getattr(candidate, "task_type", None) in ("document_intelligence", None)
+                ):
+                    active_job = candidate
+                    break
+
+    if active_job:
+        if getattr(payload, "force", False):
+            await worker_runner.cancel_job(active_job.id, reason="Force re-run requested by user")
+        else:
             return JobResponse(
-                job_id=aj.id,
-                document_id=aj.document_id,
-                status=aj.status,
-                stage=aj.stage,
-                provider=getattr(aj, "provider", "paddleocr-cloud") or "paddleocr-cloud",
-                model=getattr(aj, "model", "PaddleOCR-VL-1.6") or "PaddleOCR-VL-1.6",
-                created_at=aj.created_at,
+                job_id=active_job.id,
+                document_id=active_job.document_id,
+                status=active_job.status,
+                stage=active_job.stage,
+                provider=getattr(active_job, "provider", "paddleocr-cloud") or "paddleocr-cloud",
+                model=getattr(active_job, "model", "PaddleOCR-VL-1.6") or "PaddleOCR-VL-1.6",
+                created_at=active_job.created_at,
             )
 
     now = datetime.now(timezone.utc).isoformat()

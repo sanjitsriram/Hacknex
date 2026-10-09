@@ -10,6 +10,7 @@ class DocumentIntelligenceRequest(BaseModel):
 
     pipeline_version: str = Field(default="v1.0.0", description="Reproducible pipeline version tag")
     idempotency_key: Optional[str] = Field(default=None, description="Client idempotency key")
+    force: bool = Field(default=False, description="Force cancel active or stuck job and restart")
 
 
 class LayoutBlockResponse(BaseModel):

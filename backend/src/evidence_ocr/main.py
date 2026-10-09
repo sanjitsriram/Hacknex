@@ -34,6 +34,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     db_manager = get_db_manager()
     await db_manager.connect(settings)
 
+    # Enterprise Startup Reaper: reap zombie jobs orphaned by previous server runs / crashes
+    try:
+        if db_manager.is_connected:
+            from evidence_ocr.db.repositories.jobs import JobRepository
+            job_repo = JobRepository(db_manager.get_database())
+            reaped_count = await job_repo.reap_stale_jobs(max_stale_seconds=settings.job_stale_threshold_seconds)
+            if reaped_count > 0:
+                logger.info("Enterprise Reaper: Recovered and marked %d orphaned zombie job(s) as TIMED_OUT", reaped_count)
+    except Exception as reaper_err:
+        logger.warning("Startup job reaper notice: %s", reaper_err)
+
     yield
 
     # Clean shutdown

@@ -6,6 +6,7 @@ from typing import Annotated, Optional
 from fastapi import Depends
 from pymongo.asynchronous.database import AsyncDatabase
 from evidence_ocr.core.config import Settings, get_settings
+from evidence_ocr.core.errors import DatabaseUnavailableError
 from evidence_ocr.db.client import DatabaseManager, get_db, get_db_manager
 from evidence_ocr.db.repositories.documents import DocumentRepository
 from evidence_ocr.db.repositories.jobs import JobRepository
@@ -28,9 +29,9 @@ def get_storage_provider(
 ) -> BaseStorageProvider:
     """Provide storage provider: GridFSStorageProvider when connected to MongoDB, or MockStorageProvider."""
     db_mgr = get_db_manager()
-    if db_mgr.is_connected:
-        return GridFSStorageProvider(db=db_mgr.get_database(), bucket_name=settings.gridfs_bucket_name)
-    return MockStorageProvider()
+    if not db_mgr.is_connected:
+        return MockStorageProvider()
+    return GridFSStorageProvider(db=db_mgr.get_database(), bucket_name=settings.gridfs_bucket_name)
 
 
 # Evaluation Service Singleton
@@ -174,6 +175,7 @@ def get_worker_runner(
     storage: Annotated[BaseStorageProvider, Depends(get_storage_provider)],
     doc_repo: Annotated[DocumentRepository, Depends(get_document_repository)],
     recognition_service: Annotated[RecognitionService, Depends(get_recognition_service)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> WorkerRunner:
     """Provide WorkerRunner configured with PP-OCRv6 cloud, PaddleOCR-VL, and storage providers."""
     region_repo = get_region_repository()
@@ -187,6 +189,8 @@ def get_worker_runner(
         region_repo=region_repo,
         parsing_repo=parsing_repo,
         recognition_service=recognition_service,
+        job_timeout_seconds=settings.job_timeout_seconds,
+        heartbeat_interval_seconds=settings.job_heartbeat_interval_seconds,
     )
 
 

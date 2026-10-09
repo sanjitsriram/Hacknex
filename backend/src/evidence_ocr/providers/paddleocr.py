@@ -168,37 +168,96 @@ class PaddleOCRCloudProvider(BaseOCRProvider):
 
         async with self._semaphore:
             async with httpx.AsyncClient(timeout=self.request_timeout) as client:
-                # 1. Job Submission
-                try:
-                    files = {
-                        "file": (safe_filename, document_bytes, mime_type or "application/octet-stream"),
-                    }
-                    data = {
-                        "model": self.model,
-                        "optionalPayload": json.dumps(optional_payload),
-                    }
-                    logger.info("Submitting document (SHA-256: %s...) to PaddleOCR Cloud (%s)...", doc_sha256[:8], self.model)
-                    resp = await client.post(job_endpoint, headers=headers, data=data, files=files)
-                except httpx.TimeoutException as exc:
-                    logger.error("PaddleOCR job submission timed out: %s", exc)
-                    raise ServiceUnavailableError(f"PaddleOCR submission timed out after {self.request_timeout}s") from exc
-                except Exception as exc:
-                    logger.exception("PaddleOCR job submission network error: %s", exc)
-                    raise ServiceUnavailableError(f"PaddleOCR network error: {exc}") from exc
+                # 1. Job Submission with Retry on Queue Congestion (Code 10010)
+                resp = None
+                max_submit_retries = 3
+                for submit_attempt in range(1, max_submit_retries + 1):
+                    try:
+                        files = {
+                            "file": (safe_filename, document_bytes, mime_type or "application/octet-stream"),
+                        }
+                        data = {
+                            "model": self.model,
+                            "optionalPayload": json.dumps(optional_payload),
+                        }
+                        logger.info(
+                            "Submitting document (SHA-256: %s...) to PaddleOCR Cloud (%s) [attempt %s/%s]...",
+                            doc_sha256[:8],
+                            self.model,
+                            submit_attempt,
+                            max_submit_retries,
+                        )
+                        resp = await client.post(job_endpoint, headers=headers, data=data, files=files)
+                    except httpx.TimeoutException as exc:
+                        logger.error("PaddleOCR job submission timed out: %s", exc)
+                        if submit_attempt == max_submit_retries:
+                            raise ServiceUnavailableError(f"PaddleOCR submission timed out after {self.request_timeout}s") from exc
+                        await asyncio.sleep(2.0 * submit_attempt)
+                        continue
+                    except Exception as exc:
+                        logger.exception("PaddleOCR job submission network error: %s", exc)
+                        if submit_attempt == max_submit_retries:
+                            raise ServiceUnavailableError(f"PaddleOCR network error: {exc}") from exc
+                        await asyncio.sleep(2.0 * submit_attempt)
+                        continue
 
-                if resp.status_code == 401 or resp.status_code == 403:
-                    logger.error("PaddleOCR Cloud rejected credentials with status %s", resp.status_code)
-                    raise ServiceUnavailableError("Invalid or unauthorized PaddleOCR access token.")
-                elif resp.status_code == 429:
-                    logger.error("PaddleOCR Cloud API rate limit exceeded.")
-                    raise ServiceUnavailableError("PaddleOCR Cloud quota exceeded or rate limit reached (HTTP 429).")
-                elif resp.status_code != 200:
-                    logger.error("PaddleOCR Cloud returned error HTTP %s: %s", resp.status_code, resp.text)
-                    raise ServiceUnavailableError(f"PaddleOCR submission failed (HTTP {resp.status_code}): {resp.text}")
+                    if resp.status_code in (401, 403):
+                        logger.error("PaddleOCR Cloud rejected credentials with status %s", resp.status_code)
+                        raise ServiceUnavailableError("Invalid or unauthorized PaddleOCR access token.")
+
+                    # Handle queue saturation (Code 10010: "任务提交队列已满，请稍后重试")
+                    is_queue_full = False
+                    if resp.status_code in (400, 503):
+                        try:
+                            err_body = resp.json()
+                            if err_body.get("code") == 10010 or "队列已满" in (err_body.get("msg") or ""):
+                                is_queue_full = True
+                        except Exception:
+                            pass
+
+                    if is_queue_full:
+                        if submit_attempt < max_submit_retries:
+                            retry_delay = 2.0 * submit_attempt
+                            logger.warning(
+                                "PaddleOCR cloud queue is currently full (code 10010). Retrying in %.1fs (attempt %s/%s)...",
+                                retry_delay,
+                                submit_attempt,
+                                max_submit_retries,
+                            )
+                            await asyncio.sleep(retry_delay)
+                            continue
+                        else:
+                            logger.error("PaddleOCR cloud queue capacity exceeded after %s attempts.", max_submit_retries)
+                            raise ServiceUnavailableError(
+                                "PaddleOCR cloud inference queue is currently at capacity on Baidu AI Studio. Please retry in a few moments."
+                            )
+
+                    if resp.status_code == 429:
+                        logger.error("PaddleOCR Cloud API rate limit exceeded.")
+                        raise ServiceUnavailableError("PaddleOCR Cloud quota exceeded or rate limit reached (HTTP 429).")
+
+                    if resp.status_code != 200:
+                        logger.error("PaddleOCR Cloud returned error HTTP %s: %s", resp.status_code, resp.text)
+                        raise ServiceUnavailableError(f"PaddleOCR submission failed (HTTP {resp.status_code}): {resp.text}")
+
+                    # Break if submission succeeded with code 0
+                    try:
+                        resp_check = resp.json()
+                        if resp_check.get("code") == 10010 and submit_attempt < max_submit_retries:
+                            await asyncio.sleep(2.0 * submit_attempt)
+                            continue
+                    except Exception:
+                        pass
+                    break
+
+                if resp is None:
+                    raise ServiceUnavailableError("PaddleOCR submission failed: no response received.")
 
                 resp_data = resp.json()
                 if resp_data.get("code") != 0 or not resp_data.get("data", {}).get("jobId"):
                     err_msg = resp_data.get("msg") or "Unknown provider rejection"
+                    if resp_data.get("code") == 10010:
+                        err_msg = "PaddleOCR cloud queue is currently at capacity. Please try again in a few moments."
                     logger.error("PaddleOCR job rejected: %s", err_msg)
                     raise ServiceUnavailableError(f"PaddleOCR Cloud API rejected job: {err_msg}")
 

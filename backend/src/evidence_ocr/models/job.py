@@ -48,6 +48,7 @@ class ProcessingJob(BaseModel):
     processed_page_count: int = Field(default=0, ge=0, description="Number of pages successfully processed")
     execution_time_ms: Optional[float] = Field(default=None, ge=0.0, description="Total pipeline latency in ms")
     started_at: Optional[str] = Field(default=None, description="UTC ISO-8601 start timestamp")
+    heartbeat_at: Optional[str] = Field(default=None, description="UTC ISO-8601 worker heartbeat pulse timestamp")
     created_at: str = Field(description="UTC ISO-8601 creation timestamp")
     updated_at: str = Field(description="UTC ISO-8601 last update timestamp")
     completed_at: Optional[str] = Field(default=None, description="UTC ISO-8601 completion timestamp")

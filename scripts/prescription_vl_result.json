@@ -958,11 +958,11 @@
     "model_identifier": "PaddleOCR-VL-1.6",
     "model_version": "PaddleOCR-VL-1.6",
     "parameters": {
-      "cloud_job_id": "101769887629697024",
+      "cloud_job_id": "101833003420946432",
       "input_sha256": "d5e39a5948b1cf548cf922563453037a8a2044822c256f186c4e9fd5b5035471",
       "pages_parsed": 1,
       "total_blocks": 21
     }
   },
-  "execution_time_ms": 11269.28
+  "execution_time_ms": 7584.36
 }

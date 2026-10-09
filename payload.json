@@ -1,0 +1,962 @@
+{
+  "schema_version": "1.0",
+  "provenance_layer": "automated_provider_output",
+  "review_status": "unverified",
+  "coordinate_space": "original_page_percent_xywh",
+  "parsing_run": {
+    "id": "run-0888a65f",
+    "document_id": "doc-ef1e08c0",
+    "job_id": "job-fa392c5b",
+    "provider_id": "paddleocr-cloud",
+    "model_version": "PaddleOCR-VL-1.6",
+    "provider_job_id": "101846426826997760",
+    "input_sha256": "68aac01ecc8132b0084776c7d73159b6cdee3c622ae95b0290ca2762b00e2123",
+    "page_count": 1,
+    "markdown_text": "care....you smile....\n\n7th Cross Street, Rajalakshmi Nagar,\n\nVelachery, Chennai - 600 042.\n\nPatient Name: Mrs. SHANTHINI DEVI S\n\nLab ID No: LAB59605\n\nAge/Sex: 27 Y/F\n\nMR No: MR080477\n\nTest Date: 21-09-2015\n\nVisit No: OP154869\n\nSample Date: 21-09-2015\n\nReferral Doctor: Dr. Priyadharshini\n\nReport Date: 21-09-2015\n\nSpecimen Urine\n\n## Laboratory Report\n\n## CLINICAL PATHOLOGY\n\n\n<table border=1 style='margin: auto; word-wrap: break-word;'><tr><td style='text-align: center; word-wrap: break-word;'>Test Description</td><td style='text-align: center; word-wrap: break-word;'>Result</td><td style='text-align: center; word-wrap: break-word;'>Units</td><td style='text-align: center; word-wrap: break-word;'>Reference Range</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Urine Routine Analysis</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Colour</td><td style='text-align: center; word-wrap: break-word;'>Pale Yellow</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Appearance</td><td style='text-align: center; word-wrap: break-word;'>Slightly cloudy</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Protein (Albumin)</td><td style='text-align: center; word-wrap: break-word;'>Trace</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Sugar (F/R/PP)</td><td style='text-align: center; word-wrap: break-word;'>Nil</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Microscopy</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Pus Cell / Hpf</td><td style='text-align: center; word-wrap: break-word;'>3 - 5</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Epithelial Cells/ Hpf</td><td style='text-align: center; word-wrap: break-word;'>6 - 8</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>RBC&#x27;s /Hpf</td><td style='text-align: center; word-wrap: break-word;'>Nil</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Casts</td><td style='text-align: center; word-wrap: break-word;'>Nil</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Erystals</td><td style='text-align: center; word-wrap: break-word;'>Nil</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Others</td><td style='text-align: center; word-wrap: break-word;'>Nil</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr></table>\n\ney: *=Abnormal Low, **=Critical Low, #=Abnormal High, ##=Critical High\n\nfanning briary\n\nab Technician\n\ntango\n\nLab Incharge 216978",
+    "pages": [
+      {
+        "page_index": 0,
+        "width": 2160,
+        "height": 3197,
+        "markdown_text": "care....you smile....\n\n7th Cross Street, Rajalakshmi Nagar,\n\nVelachery, Chennai - 600 042.\n\nPatient Name: Mrs. SHANTHINI DEVI S\n\nLab ID No: LAB59605\n\nAge/Sex: 27 Y/F\n\nMR No: MR080477\n\nTest Date: 21-09-2015\n\nVisit No: OP154869\n\nSample Date: 21-09-2015\n\nReferral Doctor: Dr. Priyadharshini\n\nReport Date: 21-09-2015\n\nSpecimen Urine\n\n## Laboratory Report\n\n## CLINICAL PATHOLOGY\n\n\n<table border=1 style='margin: auto; word-wrap: break-word;'><tr><td style='text-align: center; word-wrap: break-word;'>Test Description</td><td style='text-align: center; word-wrap: break-word;'>Result</td><td style='text-align: center; word-wrap: break-word;'>Units</td><td style='text-align: center; word-wrap: break-word;'>Reference Range</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Urine Routine Analysis</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Colour</td><td style='text-align: center; word-wrap: break-word;'>Pale Yellow</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Appearance</td><td style='text-align: center; word-wrap: break-word;'>Slightly cloudy</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Protein (Albumin)</td><td style='text-align: center; word-wrap: break-word;'>Trace</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Sugar (F/R/PP)</td><td style='text-align: center; word-wrap: break-word;'>Nil</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Microscopy</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Pus Cell / Hpf</td><td style='text-align: center; word-wrap: break-word;'>3 - 5</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Epithelial Cells/ Hpf</td><td style='text-align: center; word-wrap: break-word;'>6 - 8</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>RBC&#x27;s /Hpf</td><td style='text-align: center; word-wrap: break-word;'>Nil</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Casts</td><td style='text-align: center; word-wrap: break-word;'>Nil</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Erystals</td><td style='text-align: center; word-wrap: break-word;'>Nil</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>Others</td><td style='text-align: center; word-wrap: break-word;'>Nil</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr></table>\n\ney: *=Abnormal Low, **=Critical Low, #=Abnormal High, ##=Critical High\n\nfanning briary\n\nab Technician\n\ntango\n\nLab Incharge 216978",
+        "blocks": [
+          {
+            "block_id": "blk-p0-0",
+            "page_index": 0,
+            "block_type": "header_image",
+            "bounding_box": {
+              "x": 0,
+              "y": 0,
+              "w": 14.12,
+              "h": 5.07
+            },
+            "polygon": [
+              [
+                0,
+                0
+              ],
+              [
+                305,
+                0
+              ],
+              [
+                305,
+                162
+              ],
+              [
+                0,
+                162
+              ]
+            ],
+            "raw_bbox": [
+              0,
+              0,
+              305,
+              162
+            ],
+            "content": "",
+            "reading_order": 1,
+            "confidence": 0.415
+          },
+          {
+            "block_id": "blk-p0-2",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 0,
+              "y": 5.47,
+              "w": 14.17,
+              "h": 1.91
+            },
+            "polygon": [
+              [
+                0,
+                175
+              ],
+              [
+                306,
+                175
+              ],
+              [
+                306,
+                236
+              ],
+              [
+                0,
+                236
+              ]
+            ],
+            "raw_bbox": [
+              0,
+              175,
+              306,
+              236
+            ],
+            "content": "care....you smile....",
+            "reading_order": 1,
+            "confidence": 0.415
+          },
+          {
+            "block_id": "blk-p0-1",
+            "page_index": 0,
+            "block_type": "header",
+            "bounding_box": {
+              "x": 79.95,
+              "y": 0,
+              "w": 20.05,
+              "h": 0.91
+            },
+            "polygon": [
+              [
+                1727,
+                0
+              ],
+              [
+                2160,
+                0
+              ],
+              [
+                2160,
+                29
+              ],
+              [
+                1727,
+                29
+              ]
+            ],
+            "raw_bbox": [
+              1727,
+              0,
+              2160,
+              29
+            ],
+            "content": "4000 0000",
+            "reading_order": 2,
+            "confidence": 0.61
+          },
+          {
+            "block_id": "blk-p0-4",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 32.45,
+              "y": 5,
+              "w": 48.66,
+              "h": 4.75
+            },
+            "polygon": [
+              [
+                701,
+                160
+              ],
+              [
+                1752,
+                160
+              ],
+              [
+                1752,
+                312
+              ],
+              [
+                701,
+                312
+              ]
+            ],
+            "raw_bbox": [
+              701,
+              160,
+              1752,
+              312
+            ],
+            "content": "7th Cross Street, Rajalakshmi Nagar,\nVelachery, Chennai - 600 042.",
+            "reading_order": 2,
+            "confidence": 0.61
+          },
+          {
+            "block_id": "blk-p0-5",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 0.46,
+              "y": 11.7,
+              "w": 39.07,
+              "h": 2.69
+            },
+            "polygon": [
+              [
+                10.12603759765625,
+                370.71026611328125
+              ],
+              [
+                855.1421508789062,
+                403.08209228515625
+              ],
+              [
+                852.1617431640625,
+                480.8807373046875
+              ],
+              [
+                7.1456298828125,
+                448.5089111328125
+              ]
+            ],
+            "raw_bbox": [
+              10,
+              374,
+              854,
+              460
+            ],
+            "content": "Patient Name: Mrs. SHANTHINI DEVI S",
+            "reading_order": 3,
+            "confidence": 0.6026
+          },
+          {
+            "block_id": "blk-p0-3",
+            "page_index": 0,
+            "block_type": "header_image",
+            "bounding_box": {
+              "x": 22.27,
+              "y": 0.19,
+              "w": 68.47,
+              "h": 4.85
+            },
+            "polygon": [
+              [
+                481.00006103515625,
+                5.999999046325684
+              ],
+              [
+                1960.41064453125,
+                21.014312744140625
+              ],
+              [
+                1959,
+                160
+              ],
+              [
+                479.58941650390625,
+                144.98568725585938
+              ]
+            ],
+            "raw_bbox": [
+              481,
+              6,
+              1960,
+              161
+            ],
+            "content": "",
+            "reading_order": 4,
+            "confidence": 0.558
+          },
+          {
+            "block_id": "blk-p0-6",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 0.28,
+              "y": 15.11,
+              "w": 26.81,
+              "h": 2.82
+            },
+            "polygon": [
+              [
+                6.021392822265625,
+                482.3305358886719
+              ],
+              [
+                585.79248046875,
+                500.8338623046875
+              ],
+              [
+                583.4117431640625,
+                575.4281005859375
+              ],
+              [
+                3.640716552734375,
+                556.9248046875
+              ]
+            ],
+            "raw_bbox": [
+              6,
+              483,
+              585,
+              573
+            ],
+            "content": "Lab ID No: LAB59605",
+            "reading_order": 4,
+            "confidence": 0.558
+          },
+          {
+            "block_id": "blk-p0-7",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 51.57,
+              "y": 12.82,
+              "w": 21.57,
+              "h": 1.75
+            },
+            "polygon": [
+              [
+                1114,
+                410
+              ],
+              [
+                1580,
+                410
+              ],
+              [
+                1580,
+                466
+              ],
+              [
+                1114,
+                466
+              ]
+            ],
+            "raw_bbox": [
+              1114,
+              410,
+              1580,
+              466
+            ],
+            "content": "Age/Sex: 27 Y/F",
+            "reading_order": 5,
+            "confidence": 0.5762
+          },
+          {
+            "block_id": "blk-p0-8",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 51.62,
+              "y": 14.51,
+              "w": 25.05,
+              "h": 1.63
+            },
+            "polygon": [
+              [
+                1115,
+                464
+              ],
+              [
+                1656,
+                464
+              ],
+              [
+                1656,
+                516
+              ],
+              [
+                1115,
+                516
+              ]
+            ],
+            "raw_bbox": [
+              1115,
+              464,
+              1656,
+              516
+            ],
+            "content": "MR No: MR080477",
+            "reading_order": 6,
+            "confidence": 0.6164
+          },
+          {
+            "block_id": "blk-p0-9",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 0.14,
+              "y": 16.95,
+              "w": 27.27,
+              "h": 2.5
+            },
+            "polygon": [
+              [
+                3.636932373046875,
+                529.2218017578125
+              ],
+              [
+                594.1075439453125,
+                558.6533203125
+              ],
+              [
+                590.3406982421875,
+                634.2257080078125
+              ],
+              [
+                -0.129913330078125,
+                604.794189453125
+              ]
+            ],
+            "raw_bbox": [
+              3,
+              542,
+              592,
+              622
+            ],
+            "content": "Test Date: 21-09-2015",
+            "reading_order": 7,
+            "confidence": 0.6174
+          },
+          {
+            "block_id": "blk-p0-10",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 51.67,
+              "y": 16.17,
+              "w": 24.95,
+              "h": 1.72
+            },
+            "polygon": [
+              [
+                1116,
+                517
+              ],
+              [
+                1655,
+                517
+              ],
+              [
+                1655,
+                572
+              ],
+              [
+                1116,
+                572
+              ]
+            ],
+            "raw_bbox": [
+              1116,
+              517,
+              1655,
+              572
+            ],
+            "content": "Visit No: OP154869",
+            "reading_order": 8,
+            "confidence": 0.6863
+          },
+          {
+            "block_id": "blk-p0-11",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 0.14,
+              "y": 18.55,
+              "w": 27.31,
+              "h": 2.56
+            },
+            "polygon": [
+              [
+                3.84283447265625,
+                581.7877807617188
+              ],
+              [
+                595.5880126953125,
+                626.2697143554688
+              ],
+              [
+                590.1401977539062,
+                698.7417602539062
+              ],
+              [
+                -1.60498046875,
+                654.2598266601562
+              ]
+            ],
+            "raw_bbox": [
+              3,
+              593,
+              593,
+              675
+            ],
+            "content": "Sample Date: 21-09-2015",
+            "reading_order": 9,
+            "confidence": 0.5797
+          },
+          {
+            "block_id": "blk-p0-12",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 0.05,
+              "y": 20.14,
+              "w": 32.27,
+              "h": 2.78
+            },
+            "polygon": [
+              [
+                1,
+                644
+              ],
+              [
+                1,
+                703
+              ],
+              [
+                216,
+                718
+              ],
+              [
+                388,
+                732
+              ],
+              [
+                697,
+                732
+              ],
+              [
+                697,
+                689
+              ],
+              [
+                687,
+                674
+              ],
+              [
+                290,
+                659
+              ],
+              [
+                118,
+                644
+              ]
+            ],
+            "raw_bbox": [
+              1,
+              644,
+              698,
+              733
+            ],
+            "content": "Referral Doctor: Dr. Priyadharshini",
+            "reading_order": 10,
+            "confidence": 0.5458
+          },
+          {
+            "block_id": "blk-p0-13",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 51.67,
+              "y": 17.92,
+              "w": 25.6,
+              "h": 1.88
+            },
+            "polygon": [
+              [
+                1116,
+                573
+              ],
+              [
+                1669,
+                573
+              ],
+              [
+                1669,
+                633
+              ],
+              [
+                1116,
+                633
+              ]
+            ],
+            "raw_bbox": [
+              1116,
+              573,
+              1669,
+              633
+            ],
+            "content": "Report Date: 21-09-2015",
+            "reading_order": 11,
+            "confidence": 0.6727
+          },
+          {
+            "block_id": "blk-p0-14",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 51.62,
+              "y": 19.67,
+              "w": 20.51,
+              "h": 1.78
+            },
+            "polygon": [
+              [
+                1115,
+                629
+              ],
+              [
+                1558,
+                629
+              ],
+              [
+                1558,
+                686
+              ],
+              [
+                1115,
+                686
+              ]
+            ],
+            "raw_bbox": [
+              1115,
+              629,
+              1558,
+              686
+            ],
+            "content": "Specimen Urine",
+            "reading_order": 12,
+            "confidence": 0.583
+          },
+          {
+            "block_id": "blk-p0-15",
+            "page_index": 0,
+            "block_type": "paragraph_title",
+            "bounding_box": {
+              "x": 35.23,
+              "y": 23.77,
+              "w": 26.85,
+              "h": 2.56
+            },
+            "polygon": [
+              [
+                761,
+                760
+              ],
+              [
+                1341,
+                760
+              ],
+              [
+                1341,
+                842
+              ],
+              [
+                761,
+                842
+              ]
+            ],
+            "raw_bbox": [
+              761,
+              760,
+              1341,
+              842
+            ],
+            "content": "Laboratory Report",
+            "reading_order": 13,
+            "confidence": 0.4751
+          },
+          {
+            "block_id": "blk-p0-16",
+            "page_index": 0,
+            "block_type": "paragraph_title",
+            "bounding_box": {
+              "x": 31.25,
+              "y": 27.74,
+              "w": 34.44,
+              "h": 2.63
+            },
+            "polygon": [
+              [
+                675,
+                887
+              ],
+              [
+                1419,
+                887
+              ],
+              [
+                1419,
+                971
+              ],
+              [
+                675,
+                971
+              ]
+            ],
+            "raw_bbox": [
+              675,
+              887,
+              1419,
+              971
+            ],
+            "content": "CLINICAL PATHOLOGY",
+            "reading_order": 14,
+            "confidence": 0.6517
+          },
+          {
+            "block_id": "blk-p0-18",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 0,
+              "y": 68.19,
+              "w": 68.66,
+              "h": 2.91
+            },
+            "polygon": [
+              [
+                0,
+                2196
+              ],
+              [
+                0,
+                2241
+              ],
+              [
+                98,
+                2257
+              ],
+              [
+                1482,
+                2272
+              ],
+              [
+                1482,
+                2211
+              ],
+              [
+                195,
+                2196
+              ],
+              [
+                194,
+                2180
+              ]
+            ],
+            "raw_bbox": [
+              0,
+              2180,
+              1483,
+              2273
+            ],
+            "content": "ey: *=Abnormal Low, **=Critical Low, #=Abnormal High, ##=Critical High",
+            "reading_order": 15,
+            "confidence": 0.3652
+          },
+          {
+            "block_id": "blk-p0-19",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 0,
+              "y": 70.41,
+              "w": 24.07,
+              "h": 5.69
+            },
+            "polygon": [
+              [
+                -1,
+                2251
+              ],
+              [
+                520,
+                2251
+              ],
+              [
+                520,
+                2433
+              ],
+              [
+                -1,
+                2433
+              ]
+            ],
+            "raw_bbox": [
+              0,
+              2251,
+              520,
+              2433
+            ],
+            "content": "fanning briary",
+            "reading_order": 16,
+            "confidence": 0.4379
+          },
+          {
+            "block_id": "blk-p0-20",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 0,
+              "y": 75.6,
+              "w": 14.44,
+              "h": 1.85
+            },
+            "polygon": [
+              [
+                0,
+                2417
+              ],
+              [
+                312,
+                2417
+              ],
+              [
+                312,
+                2476
+              ],
+              [
+                0,
+                2476
+              ]
+            ],
+            "raw_bbox": [
+              0,
+              2417,
+              312,
+              2476
+            ],
+            "content": "ab Technician",
+            "reading_order": 17,
+            "confidence": 0.304
+          },
+          {
+            "block_id": "blk-p0-17",
+            "page_index": 0,
+            "block_type": "table",
+            "bounding_box": {
+              "x": 0,
+              "y": 32.25,
+              "w": 97.45,
+              "h": 35.85
+            },
+            "polygon": [
+              [
+                -3,
+                1031
+              ],
+              [
+                2105,
+                1031
+              ],
+              [
+                2105,
+                2177
+              ],
+              [
+                -3,
+                2177
+              ]
+            ],
+            "raw_bbox": [
+              0,
+              1031,
+              2105,
+              2177
+            ],
+            "content": "<table><tr><td>Test Description</td><td>Result</td><td>Units</td><td>Reference Range</td></tr><tr><td>Urine Routine Analysis</td><td></td><td></td><td></td></tr><tr><td>Colour</td><td>Pale Yellow</td><td></td><td></td></tr><tr><td>Appearance</td><td>Slightly cloudy</td><td></td><td></td></tr><tr><td>Protein (Albumin)</td><td>Trace</td><td></td><td></td></tr><tr><td>Sugar (F/R/PP)</td><td>Nil</td><td></td><td></td></tr><tr><td>Microscopy</td><td></td><td></td><td></td></tr><tr><td>Pus Cell / Hpf</td><td>3 - 5</td><td></td><td></td></tr><tr><td>Epithelial Cells/ Hpf</td><td>6 - 8</td><td></td><td></td></tr><tr><td>RBC&#x27;s /Hpf</td><td>Nil</td><td></td><td></td></tr><tr><td>Casts</td><td>Nil</td><td></td><td></td></tr><tr><td>Erystals</td><td>Nil</td><td></td><td></td></tr><tr><td>Others</td><td>Nil</td><td></td><td></td></tr></table>",
+            "reading_order": 18,
+            "confidence": 0.3328
+          },
+          {
+            "block_id": "blk-p0-21",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 0,
+              "y": 77.32,
+              "w": 6.25,
+              "h": 1.97
+            },
+            "polygon": [
+              [
+                0,
+                2472
+              ],
+              [
+                135,
+                2472
+              ],
+              [
+                135,
+                2535
+              ],
+              [
+                0,
+                2535
+              ]
+            ],
+            "raw_bbox": [
+              0,
+              2472,
+              135,
+              2535
+            ],
+            "content": "tango",
+            "reading_order": 18,
+            "confidence": 0.3328
+          },
+          {
+            "block_id": "blk-p0-22",
+            "page_index": 0,
+            "block_type": "text",
+            "bounding_box": {
+              "x": 58.33,
+              "y": 74.35,
+              "w": 15.69,
+              "h": 8.38
+            },
+            "polygon": [
+              [
+                1260,
+                2377
+              ],
+              [
+                1599,
+                2377
+              ],
+              [
+                1599,
+                2645
+              ],
+              [
+                1260,
+                2645
+              ]
+            ],
+            "raw_bbox": [
+              1260,
+              2377,
+              1599,
+              2645
+            ],
+            "content": "Lab Incharge 216978",
+            "reading_order": 19,
+            "confidence": 0.3479
+          }
+        ],
+        "reading_order_sequence": [
+          "blk-p0-0",
+          "blk-p0-1",
+          "blk-p0-2",
+          "blk-p0-3",
+          "blk-p0-4",
+          "blk-p0-5",
+          "blk-p0-6",
+          "blk-p0-7",
+          "blk-p0-8",
+          "blk-p0-9",
+          "blk-p0-10",
+          "blk-p0-11",
+          "blk-p0-12",
+          "blk-p0-13",
+          "blk-p0-14",
+          "blk-p0-15",
+          "blk-p0-16",
+          "blk-p0-17",
+          "blk-p0-18",
+          "blk-p0-19",
+          "blk-p0-20",
+          "blk-p0-21",
+          "blk-p0-22"
+        ],
+        "tables_count": 1
+      }
+    ],
+    "total_blocks": 23,
+    "execution_time_ms": 11913.67,
+    "created_at": "2026-10-09T01:01:14.570520+00:00"
+  }
+}

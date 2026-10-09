@@ -1,16 +1,20 @@
 """Application configuration using Pydantic Settings."""
 
 from functools import lru_cache
+from pathlib import Path
 from typing import List
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+BACKEND_ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
 
 
 class Settings(BaseSettings):
     """EvidenceOCR Backend Settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=BACKEND_ENV_FILE,
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -50,7 +54,7 @@ class Settings(BaseSettings):
         default="evidence_files", description="MongoDB GridFS bucket for original binary files"
     )
     max_upload_size_bytes: int = Field(
-        default=10 * 1024 * 1024, description="Maximum allowed document file size (10 MiB default)"
+        default=20 * 1024 * 1024, description="Maximum allowed document file size (20 MiB default)"
     )
     max_pdf_pages: int = Field(
         default=20, description="Maximum allowed pages for uploaded PDF documents"
@@ -98,6 +102,17 @@ class Settings(BaseSettings):
     )
     paddleocr_vl_max_concurrent_jobs: int = Field(
         default=1, description="Maximum concurrent PaddleOCR-VL jobs allowed"
+    )
+
+    # Enterprise Job Lifecycle, Timeout Watchdog & Zombie Reaper
+    job_timeout_seconds: int = Field(
+        default=180, description="Global maximum execution timeout in seconds for background jobs"
+    )
+    job_stale_threshold_seconds: int = Field(
+        default=120, description="Inactivity threshold in seconds after which an unheartbeated job is considered a zombie"
+    )
+    job_heartbeat_interval_seconds: int = Field(
+        default=5, description="Interval in seconds for active worker heartbeat pulses"
     )
 
     # Phase 6: Evidence Fusion & Adaptive Recovery (budget controls)

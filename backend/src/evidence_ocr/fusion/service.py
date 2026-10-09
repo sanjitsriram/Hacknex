@@ -222,13 +222,14 @@ class FusionService:
             vl_blocks: List[LayoutBlock] = []
 
             if self.region_repo:
-                regions = await self.region_repo.list_by_document(document_id, limit=500)
+                regions = await self.region_repo.list_by_document(document_id)
 
             if self.parsing_repo:
                 parsing_runs = await self.parsing_repo.list_by_document(document_id)
-                for pr in parsing_runs:
-                    if hasattr(pr, "layout_blocks") and pr.layout_blocks:
-                        vl_blocks.extend(pr.layout_blocks)
+                # History is newest first. Never mix evidence from different runs.
+                if parsing_runs:
+                    for page in parsing_runs[0].pages:
+                        vl_blocks.extend(page.blocks)
 
             if not regions:
                 logger.warning("No OCR regions found for document %s — nothing to fuse.", document_id)
@@ -273,8 +274,9 @@ class FusionService:
                 candidates = []
                 if hasattr(region, "candidates_detail") and region.candidates_detail:
                     for cand in region.candidates_detail:
+                        cand = cand.model_dump() if hasattr(cand, "model_dump") else cand
                         raw_text = cand.get("text", "") or ""
-                        source = cand.get("source", "unknown")
+                        source = cand.get("provider_id") or cand.get("source", "unknown")
                         version = cand.get("model_version", "unknown")
                         confidence = cand.get("confidence")
                         hyp = text_aligner.build_hypothesis_candidate(

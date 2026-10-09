@@ -42,6 +42,10 @@ class RegionRepository(BaseRepository):
         )
         return [RegionEntity(**item) for item in items]
 
+    async def get_by_document_id(self, document_id: str) -> List[RegionEntity]:
+        """Alias for list_by_document to maintain repository interface compatibility."""
+        return await self.list_by_document(document_id)
+
     async def save_or_update(self, region: RegionEntity) -> RegionEntity:
         """Upsert a region entity by composite document_id and region id."""
         payload = region.model_dump()
